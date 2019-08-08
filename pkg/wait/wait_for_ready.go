@@ -116,13 +116,14 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 		return false, false, err
 	}
 
+	attempts := 0
+
 	defer watcher.Stop()
 	for {
 		select {
 		case <-time.After(timeout):
 			return false, true, nil
 		case event, ok := <-watcher.ResultChan():
-			log.Errorf("watcher resultChan ", ok, event)
 			if !ok || event.Object == nil {
 				log.Error(1)
 				return true, false, nil
@@ -147,13 +148,19 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 				return false, false, err
 			}
 			for _, cond := range conditions {
-				log.Error("condition ", cond)
+				//log.Error("condition ", cond)
 				if cond.Type == apis.ConditionReady {
 					switch cond.Status {
 					case corev1.ConditionTrue:
-						log.Error(5)
 						return false, false, nil
 					case corev1.ConditionFalse:
+						if w.ignoreGeneration {
+							attempts += 1
+							if attempts < 5 {
+								//log.Error("attempts", attempts)
+								continue
+							}
+						}
 						log.Error(6)
 						return false, false, fmt.Errorf("%s: %s", cond.Reason, cond.Message)
 					}
@@ -167,7 +174,7 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 // Alternative implemenentation: Add a func-field to waitForReadyConfig which has to be
 // provided for every resource (like the conditions extractor)
 func isGivenEqualsObservedGeneration(object runtime.Object) (bool, error) {
-	log.Error(fmt.Sprintf("%+v", object))
+	//log.Error(fmt.Sprintf("%+v", object))
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 	if err != nil {
 		return false, err
