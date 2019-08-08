@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/prometheus/common/log"
+
 	"github.com/knative/pkg/apis"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +33,8 @@ type waitForReadyConfig struct {
 	watchFunc           WatchFunc
 	conditionsExtractor ConditionsExtractor
 	kind                string
+
+	ignoreGeneration bool
 }
 
 // Interface used for waiting of a resource of a given name to reach a definitive
@@ -55,6 +59,12 @@ func NewWaitForReady(kind string, watchFunc WatchFunc, extractor ConditionsExtra
 		watchFunc:           watchFunc,
 		conditionsExtractor: extractor,
 	}
+}
+
+func NewWaitForReadyIgnoreGeneration(kind string, watchFunc WatchFunc, extractor ConditionsExtractor) WaitForReady {
+	w := NewWaitForReady(kind, watchFunc, extractor).(*waitForReadyConfig)
+	w.ignoreGeneration = true
+	return w
 }
 
 // Wait until a resource enters condition of type "Ready" to "False" or "True".
@@ -102,6 +112,7 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 
 	watcher, err := w.watchFunc(opts)
 	if err != nil {
+		log.Errorf("waitForReadyCOndition ", err)
 		return false, false, err
 	}
 
@@ -111,29 +122,39 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 		case <-time.After(timeout):
 			return false, true, nil
 		case event, ok := <-watcher.ResultChan():
+			log.Errorf("watcher resultChan ", ok, event)
 			if !ok || event.Object == nil {
+				log.Error(1)
 				return true, false, nil
 			}
 
-			// Skip event if generations has not yet been consolidated
-			inSync, err := isGivenEqualsObservedGeneration(event.Object)
-			if err != nil {
-				return false, false, err
-			}
-			if !inSync {
-				continue
+			if !w.ignoreGeneration {
+				// Skip event if generations has not yet been consolidated
+				inSync, err := isGivenEqualsObservedGeneration(event.Object)
+				if err != nil {
+					log.Error(2, err)
+					return false, false, err
+				}
+				if !inSync {
+					log.Error(3)
+					continue
+				}
 			}
 
 			conditions, err := w.conditionsExtractor(event.Object)
 			if err != nil {
+				log.Error(4, err)
 				return false, false, err
 			}
 			for _, cond := range conditions {
+				log.Error("condition ", cond)
 				if cond.Type == apis.ConditionReady {
 					switch cond.Status {
 					case corev1.ConditionTrue:
+						log.Error(5)
 						return false, false, nil
 					case corev1.ConditionFalse:
+						log.Error(6)
 						return false, false, fmt.Errorf("%s: %s", cond.Reason, cond.Message)
 					}
 				}
@@ -146,6 +167,7 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 // Alternative implemenentation: Add a func-field to waitForReadyConfig which has to be
 // provided for every resource (like the conditions extractor)
 func isGivenEqualsObservedGeneration(object runtime.Object) (bool, error) {
+	log.Error(fmt.Sprintf("%+v", object))
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 	if err != nil {
 		return false, err

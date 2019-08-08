@@ -24,6 +24,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/knative/client/pkg/kn/commands/trigger"
+
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/client/pkg/kn/commands/plugin"
 	"github.com/knative/client/pkg/kn/commands/revision"
@@ -133,6 +135,7 @@ func NewKnCommand(params ...commands.KnParams) *cobra.Command {
 	rootCmd.AddCommand(revision.NewRevisionCommand(p))
 	rootCmd.AddCommand(plugin.NewPluginCommand(p))
 	rootCmd.AddCommand(route.NewRouteCommand(p))
+	rootCmd.AddCommand(trigger.NewTriggerCommand(p))
 	rootCmd.AddCommand(commands.NewCompletionCommand(p))
 	rootCmd.AddCommand(commands.NewVersionCommand(p))
 

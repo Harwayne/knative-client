@@ -21,8 +21,10 @@ import (
 	"os"
 	"path/filepath"
 
+	eventing_kn_v1alpha1 "github.com/knative/client/pkg/eventing/v1alpha1"
 	serving_kn_v1alpha1 "github.com/knative/client/pkg/serving/v1alpha1"
 	"github.com/knative/client/pkg/util"
+	eventing_v1alpha1_client "github.com/knative/eventing/pkg/client/clientset/versioned/typed/eventing/v1alpha1"
 	serving_v1alpha1_client "github.com/knative/serving/pkg/client/clientset/versioned/typed/serving/v1alpha1"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -41,10 +43,11 @@ type Config struct {
 
 // Parameters for creating commands. Useful for inserting mocks for testing.
 type KnParams struct {
-	Output       io.Writer
-	KubeCfgPath  string
-	ClientConfig clientcmd.ClientConfig
-	NewClient    func(namespace string) (serving_kn_v1alpha1.KnClient, error)
+	Output            io.Writer
+	KubeCfgPath       string
+	ClientConfig      clientcmd.ClientConfig
+	NewClient         func(namespace string) (serving_kn_v1alpha1.KnClient, error)
+	NewEventingClient func(ns string) (eventing_kn_v1alpha1.KnClient, error)
 
 	// General global options
 	LogHttp bool
@@ -57,6 +60,9 @@ func (params *KnParams) Initialize() {
 	if params.NewClient == nil {
 		params.NewClient = params.newClient
 	}
+	if params.NewEventingClient == nil {
+		params.NewEventingClient = params.newEventingClient
+	}
 }
 
 func (params *KnParams) newClient(namespace string) (serving_kn_v1alpha1.KnClient, error) {
@@ -65,6 +71,14 @@ func (params *KnParams) newClient(namespace string) (serving_kn_v1alpha1.KnClien
 		return nil, err
 	}
 	return serving_kn_v1alpha1.NewKnServingClient(client, namespace), nil
+}
+
+func (params *KnParams) newEventingClient(ns string) (eventing_kn_v1alpha1.KnClient, error) {
+	client, err := params.GetEventingConfig()
+	if err != nil {
+		return nil, err
+	}
+	return eventing_kn_v1alpha1.NewKnEventingClient(client, ns), nil
 }
 
 // GetConfig returns Serving Client
@@ -89,6 +103,30 @@ func (params *KnParams) GetConfig() (serving_v1alpha1_client.ServingV1alpha1Inte
 	}
 
 	return serving_v1alpha1_client.NewForConfig(config)
+}
+
+// GetConfig returns Serving Client
+func (params *KnParams) GetEventingConfig() (eventing_v1alpha1_client.EventingV1alpha1Interface, error) {
+	var err error
+
+	if params.ClientConfig == nil {
+		params.ClientConfig, err = params.GetClientConfig()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	config, err := params.ClientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	if params.LogHttp {
+		// TODO: When we update to the newer version of client-go, replace with
+		// config.Wrap() for future compat.
+		config.WrapTransport = util.NewLoggingTransport
+	}
+
+	return eventing_v1alpha1_client.NewForConfig(config)
 }
 
 // GetClientConfig gets ClientConfig from KubeCfgPath
