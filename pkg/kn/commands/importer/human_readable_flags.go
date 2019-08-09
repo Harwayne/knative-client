@@ -17,6 +17,7 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/knative/client/pkg/kn/commands"
 	hprinters "github.com/knative/client/pkg/printers"
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
