@@ -26,6 +26,7 @@ import (
 	"github.com/knative/client/pkg/util"
 	eventing_v1alpha1_client "github.com/knative/eventing/pkg/client/clientset/versioned/typed/eventing/v1alpha1"
 	serving_v1alpha1_client "github.com/knative/serving/pkg/client/clientset/versioned/typed/serving/v1alpha1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -48,6 +49,7 @@ type KnParams struct {
 	ClientConfig      clientcmd.ClientConfig
 	NewClient         func(namespace string) (serving_kn_v1alpha1.KnClient, error)
 	NewEventingClient func(ns string) (eventing_kn_v1alpha1.KnClient, error)
+	NewDynamicClient  func() (dynamic.Interface, error)
 
 	// General global options
 	LogHttp bool
@@ -62,6 +64,9 @@ func (params *KnParams) Initialize() {
 	}
 	if params.NewEventingClient == nil {
 		params.NewEventingClient = params.newEventingClient
+	}
+	if params.NewDynamicClient == nil {
+		params.NewDynamicClient = params.newDynamicClient
 	}
 }
 
@@ -79,6 +84,10 @@ func (params *KnParams) newEventingClient(ns string) (eventing_kn_v1alpha1.KnCli
 		return nil, err
 	}
 	return eventing_kn_v1alpha1.NewKnEventingClient(client, ns), nil
+}
+
+func (params *KnParams) newDynamicClient() (dynamic.Interface, error) {
+	return params.GetDynamicConfig()
 }
 
 // GetConfig returns Serving Client
@@ -127,6 +136,30 @@ func (params *KnParams) GetEventingConfig() (eventing_v1alpha1_client.EventingV1
 	}
 
 	return eventing_v1alpha1_client.NewForConfig(config)
+}
+
+// GetConfig returns Serving Client
+func (params *KnParams) GetDynamicConfig() (dynamic.Interface, error) {
+	var err error
+
+	if params.ClientConfig == nil {
+		params.ClientConfig, err = params.GetClientConfig()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	config, err := params.ClientConfig.ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	if params.LogHttp {
+		// TODO: When we update to the newer version of client-go, replace with
+		// config.Wrap() for future compat.
+		config.WrapTransport = util.NewLoggingTransport
+	}
+
+	return dynamic.NewForConfig(config)
 }
 
 // GetClientConfig gets ClientConfig from KubeCfgPath
