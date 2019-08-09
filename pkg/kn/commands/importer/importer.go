@@ -15,11 +15,6 @@
 package importer
 
 import (
-	"fmt"
-	"io"
-	"time"
-
-	eventing_kn_v1alpha1 "github.com/knative/client/pkg/eventing/v1alpha1"
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/spf13/cobra"
 )
@@ -31,23 +26,10 @@ const (
 
 func NewImporterCommand(p *commands.KnParams) *cobra.Command {
 	importerCmd := &cobra.Command{
-		Use:   "trigger",
-		Short: "Trigger command group",
+		Use:   "importer",
+		Short: "Importer command group",
 	}
 	importerCmd.AddCommand(NewImporterListCommand(p))
 	importerCmd.AddCommand(NewImporterDescribeCommand(p))
 	return importerCmd
-}
-
-func waitForTrigger(client eventing_kn_v1alpha1.KnClient, triggerName string, out io.Writer, timeout int) error {
-	fmt.Fprintf(out, "Waiting for trigger '%s' to become ready ... ", triggerName)
-	flush(out)
-
-	err := client.WaitForTrigger(triggerName, time.Duration(timeout)*time.Second)
-	if err != nil {
-		fmt.Fprintln(out)
-		return err
-	}
-	fmt.Fprintln(out, "OK")
-	return nil
 }
