@@ -26,6 +26,7 @@ import (
 	"github.com/knative/client/pkg/printers"
 	"github.com/spf13/cobra"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	// "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/duration"
@@ -43,8 +44,13 @@ var printDetails bool
 const truncateAt = 100
 
 var (
-	crdGVK = apiextensions.SchemeGroupVersion.WithResource("CustomResourceDefinition")
+	crdGVK = apiextensions.SchemeGroupVersion.WithResource("customresourcedefinitions")
+	// crdGVK2 = v1beta1.SchemeGroupVersion.WithResource("CustomResourceDefinition")
 )
+
+func init() {
+	crdGVK.Version = "v1beta1"
+}
 
 // NewTriggerDescribeCommand returns a new command for describing a trigger.
 func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
