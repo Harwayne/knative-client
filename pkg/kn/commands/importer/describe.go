@@ -15,6 +15,7 @@
 package importer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -127,6 +128,7 @@ func writeCRD(dw printers.PrefixWriter, crd *unstructured.Unstructured) {
 	writeMapDesc(dw, printers.Level0, crd.GetLabels(), l("Labels"), "")
 	writeMapDesc(dw, printers.Level0, crd.GetAnnotations(), l("Annotations"), "")
 	dw.WriteColsLn(printers.Level0, l("Age"), age(crd.GetCreationTimestamp().Time))
+	writeMapDesc(dw, printers.Level0, getEventTypes(crd), l("Event Types"), "")
 }
 
 // ======================================================================================
@@ -185,4 +187,37 @@ func age(t time.Time) string {
 		return ""
 	}
 	return duration.ShortHumanDuration(time.Now().Sub(t))
+}
+
+func getEventTypes(u *unstructured.Unstructured) map[string]string {
+	j, err := u.MarshalJSON()
+	if err != nil {
+		panic(fmt.Errorf("marshaling unstructured: %v", err))
+	}
+	crd := apiextensions.CustomResourceDefinition{}
+	err = json.Unmarshal(j, &crd)
+	if err != nil {
+		panic(fmt.Errorf("unmarshaling JSON: %v", err))
+	}
+	reg, ok := crd.Spec.Validation.OpenAPIV3Schema.Properties["registry"]
+	if !ok {
+		return nil
+	}
+	et, ok := reg.Properties["eventTypes"]
+	if !ok {
+		return nil
+	}
+	m := make(map[string]string)
+	for n, v := range et.Properties {
+		var ceType string
+		if t, ok := v.Properties["type"]; ok {
+			ceType = t.Pattern
+		}
+		var ceSchema string
+		if s, ok := v.Properties["schema"]; ok {
+			ceSchema = s.Pattern
+		}
+		m[n] = fmt.Sprintf("%s\t%s", ceType, ceSchema)
+	}
+	return m
 }
