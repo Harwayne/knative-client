@@ -15,11 +15,15 @@
 package importer
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/knative/client/pkg/kn/commands"
 	hprinters "github.com/knative/client/pkg/printers"
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
+	duckv1beta1 "github.com/knative/pkg/apis/duck/v1beta1"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"knative.dev/pkg/apis/duck/v1beta1"
 )
 
 // ServiceListHandlers adds print handlers for service list command
@@ -74,4 +78,17 @@ func printTrigger(kService *eventingv1alpha1.Trigger, options hprinters.PrintOpt
 		reason,
 		subscriberURI)
 	return []metav1beta1.TableRow{row}, nil
+}
+
+func toConditions(conditions v1beta1.Conditions) duckv1beta1.Conditions {
+	j, err := json.Marshal(conditions)
+	if err != nil {
+		panic(fmt.Errorf("marshalling json: %v", err))
+	}
+	c := duckv1beta1.Conditions{}
+	err = json.Unmarshal(j, &c)
+	if err != nil {
+		panic(fmt.Errorf("unmarshalling json: %v", err))
+	}
+	return c
 }
