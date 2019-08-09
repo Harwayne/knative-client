@@ -123,12 +123,15 @@ func describe(w io.Writer, crd *unstructured.Unstructured) error {
 }
 
 // Write out main trigger information. Use colors for major items.
-func writeCRD(dw printers.PrefixWriter, crd *unstructured.Unstructured) {
+func writeCRD(dw printers.PrefixWriter, u *unstructured.Unstructured) {
+	crd := crd(u)
 	dw.WriteColsLn(printers.Level0, l("Name"), crd.GetName())
+	dw.WriteColsLn(printers.Level0, crd.Kind, l("Kind"))
 	writeMapDesc(dw, printers.Level0, crd.GetLabels(), l("Labels"), "")
 	writeMapDesc(dw, printers.Level0, crd.GetAnnotations(), l("Annotations"), "")
 	dw.WriteColsLn(printers.Level0, l("Age"), age(crd.GetCreationTimestamp().Time))
-	writeMapDesc(dw, printers.Level0, getEventTypes(crd), l("Event Types"), "")
+	writeEventTypes(dw, printers.Level0, crd)
+	writeRequiredProperties(dw, printers.Level0, crd)
 }
 
 // ======================================================================================
@@ -189,7 +192,55 @@ func age(t time.Time) string {
 	return duration.ShortHumanDuration(time.Now().Sub(t))
 }
 
-func getEventTypes(u *unstructured.Unstructured) map[string]string {
+type etInfo struct {
+	description string
+	ceType string
+	ceSchema string
+}
+
+func getEventTypes(crd apiextensions.CustomResourceDefinition) map[string]etInfo {
+	reg, ok := crd.Spec.Validation.OpenAPIV3Schema.Properties["registry"]
+	if !ok {
+		return nil
+	}
+	et, ok := reg.Properties["eventTypes"]
+	if !ok {
+		return nil
+	}
+	m := make(map[string]etInfo)
+	for n, v := range et.Properties {
+		i := etInfo{
+			description: v.Description,
+		}
+		if t, ok := v.Properties["type"]; ok {
+			i.ceType = t.Pattern
+		}
+		if s, ok := v.Properties["schema"]; ok {
+			i.ceSchema = s.Pattern
+		}
+		m[n] = i
+	}
+	return m
+}
+
+func writeIfNotEmpty(dw printers.PrefixWriter, indent int, prefix string, arg string) {
+	if arg != "" {
+		dw.Write(indent, "%s: %v\n", prefix, arg)
+	}
+}
+
+func writeEventTypes(dw printers.PrefixWriter, indent int, crd apiextensions.CustomResourceDefinition) {
+	et := getEventTypes(crd)
+	dw.Write(indent, "Event Types:\n")
+	for n, v := range et {
+		dw.Write(indent + 1, "%s\n", n)
+		writeIfNotEmpty(dw, indent + 2, "Description", v.description)
+		writeIfNotEmpty(dw, indent + 2, "Type", v.ceType)
+		writeIfNotEmpty(dw, indent + 2, "Schema", v.ceSchema)
+	}
+}
+
+func crd(u *unstructured.Unstructured) apiextensions.CustomResourceDefinition {
 	j, err := u.MarshalJSON()
 	if err != nil {
 		panic(fmt.Errorf("marshaling unstructured: %v", err))
@@ -199,25 +250,69 @@ func getEventTypes(u *unstructured.Unstructured) map[string]string {
 	if err != nil {
 		panic(fmt.Errorf("unmarshaling JSON: %v", err))
 	}
-	reg, ok := crd.Spec.Validation.OpenAPIV3Schema.Properties["registry"]
+	return crd
+}
+
+type props struct {
+	required map[string]prop
+	optional map[string]prop
+}
+
+type prop struct {
+	t string
+	description string
+}
+
+func writeRequiredProperties(dw printers.PrefixWriter, indent int, crd apiextensions.CustomResourceDefinition) {
+	props := getOpenAPIProperties(crd)
+	dw.Write(indent, "Configuration:\n")
+	if len(props.required) > 0 {
+		dw.Write(indent+1, "Required:\n")
+		writeProperties(dw, indent+2, props.required)
+	}
+	if len(props.optional) > 0 {
+		dw.Write(indent+1, "Optional:\n")
+		writeProperties(dw, indent+2, props.optional)
+	}
+}
+
+func writeProperties(dw printers.PrefixWriter, indent int, props map[string]prop) {
+	for n, p := range props {
+		dw.Write(indent, "%s\n", n)
+		dw.Write(indent + 1, "Type: %s\n", p.t)
+		writeIfNotEmpty(dw, indent + 1, "Description", p.description)
+	}
+}
+
+func getOpenAPIProperties(crd apiextensions.CustomResourceDefinition) props {
+	props := props{
+		required: make(map[string]prop),
+		optional: make(map[string]prop),
+	}
+
+	spec, ok := crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"]
 	if !ok {
-		return nil
+		return props
 	}
-	et, ok := reg.Properties["eventTypes"]
-	if !ok {
-		return nil
-	}
-	m := make(map[string]string)
-	for n, v := range et.Properties {
-		var ceType string
-		if t, ok := v.Properties["type"]; ok {
-			ceType = t.Pattern
+	for n, v := range spec.Properties {
+		p := prop{
+			description: v.Description,
+			t: v.Type,
 		}
-		var ceSchema string
-		if s, ok := v.Properties["schema"]; ok {
-			ceSchema = s.Pattern
+		if contains(spec.Required, n) {
+			props.required[n] = p
+		} else {
+			props.optional[n] = p
 		}
-		m[n] = fmt.Sprintf("%s\t%s", ceType, ceSchema)
 	}
-	return m
+	return props
+}
+
+func contains(l []string, s string) bool {
+	for _, i := range l {
+		if i == s {
+			return true
+		}
+	}
+	return false
 }
