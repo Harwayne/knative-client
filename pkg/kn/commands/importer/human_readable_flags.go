@@ -17,10 +17,10 @@ package importer
 import (
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/knative/client/pkg/kn/commands"
 	hprinters "github.com/knative/client/pkg/printers"
-	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	duckv1beta1 "github.com/knative/pkg/apis/duck/v1beta1"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,15 +28,10 @@ import (
 )
 
 // ServiceListHandlers adds print handlers for service list command
-func ServiceListHandlers(h hprinters.PrintHandler) {
+func ImporterListHandlers(h hprinters.PrintHandler) {
 	kServiceColumnDefinitions := []metav1beta1.TableColumnDefinition{
 		{Name: "Name", Type: "string", Description: "Name of the Knative service."},
-		{Name: "Generation", Type: "integer", Description: "Sequence number of 'Generation' of the service that was last processed by the controller."},
 		{Name: "Age", Type: "string", Description: "Age of the service."},
-		{Name: "Conditions", Type: "string", Description: "Conditions describing statuses of service components."},
-		{Name: "Ready", Type: "string", Description: "Ready condition status of the service."},
-		{Name: "Reason", Type: "string", Description: "Reason for non-ready condition of the service."},
-		{Name: "Subscriber", Type: "string", Description: "Subscriber's URL."},
 	}
 	h.TableHandler(kServiceColumnDefinitions, printTrigger)
 	h.TableHandler(kServiceColumnDefinitions, printTriggerList)
@@ -45,10 +40,10 @@ func ServiceListHandlers(h hprinters.PrintHandler) {
 // Private functions
 
 // printKServiceList populates the knative service list table rows
-func printTriggerList(kServiceList *eventingv1alpha1.TriggerList, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
-	rows := make([]metav1beta1.TableRow, 0, len(kServiceList.Items))
-	for _, ksvc := range kServiceList.Items {
-		r, err := printTrigger(&ksvc, options)
+func printTriggerList(cl *unstructured.UnstructuredList, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
+	rows := make([]metav1beta1.TableRow, 0, len(cl.Items))
+	for _, i := range cl.Items {
+		r, err := printTrigger(&i, options)
 		if err != nil {
 			return nil, err
 		}
@@ -58,26 +53,16 @@ func printTriggerList(kServiceList *eventingv1alpha1.TriggerList, options hprint
 }
 
 // printKService populates the knative service table rows
-func printTrigger(kService *eventingv1alpha1.Trigger, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
-	name := kService.Name
-	generation := kService.Status.ObservedGeneration
-	age := commands.TranslateTimestampSince(kService.CreationTimestamp)
-	conditions := commands.ConditionsValue(toConditions(kService.Status.Conditions))
-	ready := commands.ReadyCondition(toConditions(kService.Status.Conditions))
-	reason := commands.NonReadyConditionReason(toConditions(kService.Status.Conditions))
-	subscriberURI := kService.Status.SubscriberURI
+func printTrigger(c *unstructured.Unstructured, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
+	name := c.GetName()
+	age := commands.TranslateTimestampSince(c.GetCreationTimestamp())
 
 	row := metav1beta1.TableRow{
-		Object: runtime.RawExtension{Object: kService},
+		Object: runtime.RawExtension{Object: c},
 	}
 	row.Cells = append(row.Cells,
 		name,
-		generation,
-		age,
-		conditions,
-		ready,
-		reason,
-		subscriberURI)
+		age)
 	return []metav1beta1.TableRow{row}, nil
 }
 

@@ -16,7 +16,7 @@ package importer
 
 import (
 	"fmt"
-
+	"github.com/prometheus/common/log"
 	"k8s.io/apimachinery/pkg/labels"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +30,7 @@ import (
 
 // NewTriggerListCommand represents 'kn trigger list' command
 func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
-	triggerListFlags := NewTriggerListFlags()
+	triggerListFlags := NewImporterListFlags()
 
 	triggerListCommand := &cobra.Command{
 		Use:   "list [name]",
@@ -64,6 +64,7 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
 
 			err = printer.PrintObj(crdList, cmd.OutOrStdout())
 			if err != nil {
+				log.Error(2)
 				return err
 			}
 			return nil
@@ -83,7 +84,7 @@ func getCRDInfo(args []string, client dynamic.Interface) (*unstructured.Unstruct
 	case 0:
 		cl, err = client.Resource(crdGVK).List(v1.ListOptions{
 			LabelSelector: labels.SelectorFromSet(map[string]string{
-				"knative.dev/crd-install": "true",
+				"eventing.knative.dev/source": "true",
 			}).String(),
 		})
 	default:
