@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/prometheus/common/log"
 	"io"
 	"sort"
 	"strings"
@@ -126,8 +125,8 @@ func describe(w io.Writer, crd *unstructured.Unstructured) error {
 // Write out main trigger information. Use colors for major items.
 func writeCRD(dw printers.PrefixWriter, u *unstructured.Unstructured) {
 	crd := crd(u)
-	log.Errorf("Unstructured: %+v", u)
-	log.Errorf("CRD: %+v", crd)
+//	log.Errorf("Unstructured: %+v", u)
+//	log.Errorf("CRD: %+v", crd)
 	dw.WriteColsLn(printers.Level0, l("Name"), u.GetName())
 	dw.WriteColsLn(printers.Level0, l("Kind"), crd.Spec.Names.Kind)
 	writeMapDesc(dw, printers.Level0, u.GetLabels(), l("Labels"), "")
