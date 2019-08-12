@@ -20,15 +20,15 @@ import (
 )
 
 type importerEditFlags struct {
-	Broker           string
-	FilterAttributes map[string]string
+	Broker     string
+	Parameters map[string]string
 
 	ForceCreate bool
 }
 
 func (p *importerEditFlags) AddUpdateFlags(command *cobra.Command) {
 	command.Flags().StringVar(&p.Broker, "broker", "default", "Broker the Importer associates with.")
-	command.Flags().StringToStringVar(&p.FilterAttributes, "filter", make(map[string]string), "Filter attributes, expressed as a CSV.")
+	command.Flags().StringToStringVar(&p.Parameters, "parameters", make(map[string]string), "Parameters used in the spec of the created importer, expressed as a CSV.")
 }
 
 func (p *importerEditFlags) AddCreateFlags(command *cobra.Command) {
@@ -38,6 +38,9 @@ func (p *importerEditFlags) AddCreateFlags(command *cobra.Command) {
 
 func (p *importerEditFlags) Apply(m map[string]interface{}, cmd *cobra.Command) error {
 	spec := make(map[string]interface{})
+	for k, v := range p.Parameters {
+		spec[k] = v
+	}
 	spec["sink"] = v1.ObjectReference{
 		APIVersion: "eventing.knative.dev/v1alpha1",
 		Kind:       "Broker",
