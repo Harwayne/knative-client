@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/client-go/dynamic"
+
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/client/pkg/printers"
 	"github.com/spf13/cobra"
@@ -65,7 +67,7 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 			}
 			crdName := args[0]
 
-			crd, err := getCRD(p, crdName)
+			_, crd, err := getCRD(p, crdName)
 
 			// Print out machine readable output if requested
 			if machineReadablePrintFlags.OutputFlagSpecified() {
@@ -91,22 +93,22 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 	return command
 }
 
-func getCRD(p *commands.KnParams, name string) (v1beta1.CustomResourceDefinition, error) {
+func getCRD(p *commands.KnParams, name string) (dynamic.Interface, v1beta1.CustomResourceDefinition, error) {
 	client, err := p.NewDynamicClient()
 	if err != nil {
-		return v1beta1.CustomResourceDefinition{}, err
+		return nil, v1beta1.CustomResourceDefinition{}, err
 	}
 
 	c := client.Resource(crdGVK)
 	u, err := c.Get(name, metav1.GetOptions{})
 	if err != nil {
-		return v1beta1.CustomResourceDefinition{}, err
+		return nil, v1beta1.CustomResourceDefinition{}, err
 	}
 	crd, err := crd(u)
 	if err != nil {
-		return v1beta1.CustomResourceDefinition{}, err
+		return nil, v1beta1.CustomResourceDefinition{}, err
 	}
-	return crd, nil
+	return client, crd, nil
 }
 
 // Main action describing the trigger

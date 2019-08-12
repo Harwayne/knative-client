@@ -15,6 +15,12 @@
 package importer
 
 import (
+	"errors"
+	"fmt"
+	"io"
+
+	"k8s.io/client-go/dynamic"
+
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/spf13/cobra"
 )
@@ -37,6 +43,22 @@ func NewImporterCommand(p *commands.KnParams) *cobra.Command {
 	importerCmd.AddCommand(
 		NewImporterListCommand(p),
 		NewImporterDescribeCommand(p),
+		NewImporterCreateCOCommand(p),
 		NewImporterDeleteCOCommand(p))
 	return importerCmd
+}
+
+func waitForImporter(client dynamic.ResourceInterface, name string, out io.Writer, timeout int) error {
+	fmt.Fprintf(out, "Waiting for importer '%s' to become ready ... ", name)
+	flush(out)
+
+	// TODO
+	// err := client.WaitForTrigger(name, time.Duration(timeout)*time.Second)
+	err := errors.New("waitForImporter not yet implemented")
+	if err != nil {
+		fmt.Fprintln(out)
+		return err
+	}
+	fmt.Fprintln(out, "OK")
+	return nil
 }

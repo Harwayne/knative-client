@@ -106,7 +106,7 @@ func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return showUrl(client, name, namespace, out)
+				return nil
 			}
 
 			return nil
@@ -203,7 +203,6 @@ func constructTrigger(cmd *cobra.Command, editFlags triggerEditFlags, name strin
 		},
 	}
 
-	// TODO: Should it always be `runLatest` ?
 	trigger.Spec.Broker = "default"
 
 	err := editFlags.Apply(&trigger, cmd)
@@ -211,20 +210,4 @@ func constructTrigger(cmd *cobra.Command, editFlags triggerEditFlags, name strin
 		return nil, err
 	}
 	return &trigger, nil
-}
-
-func showUrl(client v1alpha1.KnClient, triggerName string, namespace string, out io.Writer) error {
-	_, err := client.GetTrigger(triggerName)
-	if err != nil {
-		return fmt.Errorf("cannot fetch trigger '%s' in namespace '%s' for extracting the URL: %v", triggerName, namespace, err)
-	}
-
-	//	url := trigger.Status.URL.String()
-	//	if url == "" {
-	//		url = trigger.Status.DeprecatedDomain
-	//	}
-	url := "triggers-dont-have-urls"
-	fmt.Fprintln(out, "\nTrigger URL:")
-	fmt.Fprintf(out, "%s\n", url)
-	return nil
 }

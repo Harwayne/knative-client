@@ -44,7 +44,7 @@ func (p *triggerEditFlags) AddCreateFlags(command *cobra.Command) {
 	}
 }
 
-func (p *triggerEditFlags) Apply(t *eventingv1alpha1.Trigger, cmd *cobra.Command) error {
+func (p *triggerEditFlags) Apply(t *eventingv1alpha1.Trigger, _ *cobra.Command) error {
 	fa := eventingv1alpha1.TriggerFilterAttributes(p.FilterAttributes)
 	t.Spec = eventingv1alpha1.TriggerSpec{
 		Broker: p.Broker,

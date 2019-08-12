@@ -49,13 +49,12 @@ func NewImporterDeleteCOCommand(p *commands.KnParams) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			crd, err := getCRD(p, crdName)
-			gvr := getGVR(crd)
-
-			c, err := p.NewDynamicClient()
+			c, crd, err := getCRD(p, crdName)
 			if err != nil {
 				return err
 			}
+			gvr := getGVR(crd)
+
 			err = c.Resource(gvr).Namespace(ns).Delete(name, nil)
 			if err != nil {
 				return err
@@ -84,5 +83,14 @@ func getGVR(crd v1beta1.CustomResourceDefinition) schema.GroupVersionResource {
 		Group:    crd.Spec.Group,
 		Version:  version,
 		Resource: crd.Spec.Names.Plural,
+	}
+}
+
+func getGVK(crd v1beta1.CustomResourceDefinition) schema.GroupVersionKind {
+	gvr := getGVR(crd)
+	return schema.GroupVersionKind{
+		Group:   gvr.Group,
+		Version: gvr.Version,
+		Kind:    crd.Spec.Names.Kind,
 	}
 }
