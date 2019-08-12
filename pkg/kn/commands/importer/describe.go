@@ -65,16 +65,7 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 			}
 			crdName := args[0]
 
-			client, err := p.NewDynamicClient()
-			if err != nil {
-				return err
-			}
-
-			c := client.Resource(crdGVK)
-			crd, err := c.Get(crdName, metav1.GetOptions{})
-			if err != nil {
-				return err
-			}
+			crd, err := getCRD(p, crdName)
 
 			// Print out machine readable output if requested
 			if machineReadablePrintFlags.OutputFlagSpecified() {
@@ -82,7 +73,7 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				return printer.PrintObj(crd, cmd.OutOrStdout())
+				return printer.PrintObj(&crd, cmd.OutOrStdout())
 			}
 
 			printDetails, err = cmd.Flags().GetBool("verbose")
@@ -100,8 +91,26 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 	return command
 }
 
+func getCRD(p *commands.KnParams, name string) (v1beta1.CustomResourceDefinition, error) {
+	client, err := p.NewDynamicClient()
+	if err != nil {
+		return v1beta1.CustomResourceDefinition{}, err
+	}
+
+	c := client.Resource(crdGVK)
+	u, err := c.Get(name, metav1.GetOptions{})
+	if err != nil {
+		return v1beta1.CustomResourceDefinition{}, err
+	}
+	crd, err := crd(u)
+	if err != nil {
+		return v1beta1.CustomResourceDefinition{}, err
+	}
+	return crd, nil
+}
+
 // Main action describing the trigger
-func describe(w io.Writer, crd *unstructured.Unstructured) error {
+func describe(w io.Writer, crd v1beta1.CustomResourceDefinition) error {
 	dw := printers.NewPrefixWriter(w)
 
 	// Trigger info
@@ -117,8 +126,7 @@ func describe(w io.Writer, crd *unstructured.Unstructured) error {
 }
 
 // Write out main trigger information. Use colors for major items.
-func writeCRD(dw printers.PrefixWriter, u *unstructured.Unstructured) {
-	crd := crd(u)
+func writeCRD(dw printers.PrefixWriter, crd v1beta1.CustomResourceDefinition) {
 	dw.WriteColsLn(printers.Level0, l("Name"), crd.Name)
 	dw.WriteColsLn(printers.Level0, l("Kind"), crd.Spec.Names.Kind)
 	writeMapDesc(dw, printers.Level0, crd.Labels, l("Labels"), "")
@@ -234,12 +242,12 @@ func writeEventTypes(dw printers.PrefixWriter, indent int, crd v1beta1.CustomRes
 	}
 }
 
-func crd(u *unstructured.Unstructured) v1beta1.CustomResourceDefinition {
+func crd(u *unstructured.Unstructured) (v1beta1.CustomResourceDefinition, error) {
 	var crd v1beta1.CustomResourceDefinition
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crd); err != nil {
-		panic(fmt.Errorf("converting unstructured: %v", err))
+		return v1beta1.CustomResourceDefinition{}, fmt.Errorf("converting unstructured: %v", err)
 	}
-	return crd
+	return crd, nil
 }
 
 type props struct {
