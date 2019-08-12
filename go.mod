@@ -39,7 +39,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.0.0-20190226173710-145d52631d00
-	k8s.io/apiextensions-apiserver v0.0.0-20190226180157-bd0469a053ff
+	k8s.io/apiextensions-apiserver v0.0.0-20190704104150-2ca73abc47d4
 	k8s.io/apimachinery v0.0.0-20190221084156-01f179d85dbc
 	k8s.io/cli-runtime v0.0.0-20190325194458-f2b4781c3ae1
 	k8s.io/client-go v0.0.0-20190226174127-78295b709ec6

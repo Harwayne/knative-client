@@ -26,7 +26,12 @@ const (
 
 func NewImporterCommand(p *commands.KnParams) *cobra.Command {
 	importerCmd := &cobra.Command{
-		Use:   "importer",
+		Use: "importer",
+		Aliases: []string{
+			"importers",
+			"source",
+			"sources",
+		},
 		Short: "Importer command group",
 	}
 	importerCmd.AddCommand(NewImporterListCommand(p))

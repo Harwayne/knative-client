@@ -16,6 +16,7 @@ package importer
 
 import (
 	"fmt"
+
 	"github.com/prometheus/common/log"
 	"k8s.io/apimachinery/pkg/labels"
 

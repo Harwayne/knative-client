@@ -31,7 +31,10 @@ const (
 
 func NewTriggerCommand(p *commands.KnParams) *cobra.Command {
 	triggerCmd := &cobra.Command{
-		Use:   "trigger",
+		Use: "trigger",
+		Aliases: []string{
+			"triggers",
+		},
 		Short: "Trigger command group",
 	}
 	triggerCmd.AddCommand(NewTriggerListCommand(p))

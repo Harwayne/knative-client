@@ -15,7 +15,6 @@
 package importer
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -26,10 +25,10 @@ import (
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/client/pkg/printers"
 	"github.com/spf13/cobra"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
-	// "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
@@ -45,13 +44,8 @@ var printDetails bool
 const truncateAt = 100
 
 var (
-	crdGVK = apiextensions.SchemeGroupVersion.WithResource("customresourcedefinitions")
-	// crdGVK2 = v1beta1.SchemeGroupVersion.WithResource("CustomResourceDefinition")
+	crdGVK = v1beta1.SchemeGroupVersion.WithResource("customresourcedefinitions")
 )
-
-func init() {
-	crdGVK.Version = "v1beta1"
-}
 
 // NewTriggerDescribeCommand returns a new command for describing a trigger.
 func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
@@ -125,13 +119,11 @@ func describe(w io.Writer, crd *unstructured.Unstructured) error {
 // Write out main trigger information. Use colors for major items.
 func writeCRD(dw printers.PrefixWriter, u *unstructured.Unstructured) {
 	crd := crd(u)
-//	log.Errorf("Unstructured: %+v", u)
-//	log.Errorf("CRD: %+v", crd)
-	dw.WriteColsLn(printers.Level0, l("Name"), u.GetName())
+	dw.WriteColsLn(printers.Level0, l("Name"), crd.Name)
 	dw.WriteColsLn(printers.Level0, l("Kind"), crd.Spec.Names.Kind)
-	writeMapDesc(dw, printers.Level0, u.GetLabels(), l("Labels"), "")
-	writeMapDesc(dw, printers.Level0, u.GetAnnotations(), l("Annotations"), "")
-	dw.WriteColsLn(printers.Level0, l("Age"), age(u.GetCreationTimestamp().Time))
+	writeMapDesc(dw, printers.Level0, crd.Labels, l("Labels"), "")
+	writeMapDesc(dw, printers.Level0, crd.Annotations, l("Annotations"), "")
+	dw.WriteColsLn(printers.Level0, l("Age"), age(crd.CreationTimestamp.Time))
 	writeEventTypes(dw, printers.Level0, crd)
 	writeRequiredProperties(dw, printers.Level0, crd)
 }
@@ -196,11 +188,11 @@ func age(t time.Time) string {
 
 type etInfo struct {
 	description string
-	ceType string
-	ceSchema string
+	ceType      string
+	ceSchema    string
 }
 
-func getEventTypes(crd apiextensions.CustomResourceDefinition) map[string]etInfo {
+func getEventTypes(crd v1beta1.CustomResourceDefinition) map[string]etInfo {
 	reg, ok := crd.Spec.Validation.OpenAPIV3Schema.Properties["registry"]
 	if !ok {
 		return nil
@@ -231,26 +223,21 @@ func writeIfNotEmpty(dw printers.PrefixWriter, indent int, prefix string, arg st
 	}
 }
 
-func writeEventTypes(dw printers.PrefixWriter, indent int, crd apiextensions.CustomResourceDefinition) {
+func writeEventTypes(dw printers.PrefixWriter, indent int, crd v1beta1.CustomResourceDefinition) {
 	et := getEventTypes(crd)
 	dw.Write(indent, "Event Types:\n")
 	for n, v := range et {
-		dw.Write(indent + 1, "%s\n", n)
-		writeIfNotEmpty(dw, indent + 2, "Description", v.description)
-		writeIfNotEmpty(dw, indent + 2, "Type", v.ceType)
-		writeIfNotEmpty(dw, indent + 2, "Schema", v.ceSchema)
+		dw.Write(indent+1, "%s\n", n)
+		writeIfNotEmpty(dw, indent+2, "Description", v.description)
+		writeIfNotEmpty(dw, indent+2, "Type", v.ceType)
+		writeIfNotEmpty(dw, indent+2, "Schema", v.ceSchema)
 	}
 }
 
-func crd(u *unstructured.Unstructured) apiextensions.CustomResourceDefinition {
-	j, err := u.MarshalJSON()
-	if err != nil {
-		panic(fmt.Errorf("marshaling unstructured: %v", err))
-	}
-	crd := apiextensions.CustomResourceDefinition{}
-	err = json.Unmarshal(j, &crd)
-	if err != nil {
-		panic(fmt.Errorf("unmarshaling JSON: %v", err))
+func crd(u *unstructured.Unstructured) v1beta1.CustomResourceDefinition {
+	var crd v1beta1.CustomResourceDefinition
+	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crd); err != nil {
+		panic(fmt.Errorf("converting unstructured: %v", err))
 	}
 	return crd
 }
@@ -261,11 +248,11 @@ type props struct {
 }
 
 type prop struct {
-	t string
+	t           string
 	description string
 }
 
-func writeRequiredProperties(dw printers.PrefixWriter, indent int, crd apiextensions.CustomResourceDefinition) {
+func writeRequiredProperties(dw printers.PrefixWriter, indent int, crd v1beta1.CustomResourceDefinition) {
 	props := getOpenAPIProperties(crd)
 	dw.Write(indent, "Configuration:\n")
 	if len(props.required) > 0 {
@@ -281,12 +268,12 @@ func writeRequiredProperties(dw printers.PrefixWriter, indent int, crd apiextens
 func writeProperties(dw printers.PrefixWriter, indent int, props map[string]prop) {
 	for n, p := range props {
 		dw.Write(indent, "%s\n", n)
-		dw.Write(indent + 1, "Type: %s\n", p.t)
-		writeIfNotEmpty(dw, indent + 1, "Description", p.description)
+		dw.Write(indent+1, "Type: %s\n", p.t)
+		writeIfNotEmpty(dw, indent+1, "Description", p.description)
 	}
 }
 
-func getOpenAPIProperties(crd apiextensions.CustomResourceDefinition) props {
+func getOpenAPIProperties(crd v1beta1.CustomResourceDefinition) props {
 	props := props{
 		required: make(map[string]prop),
 		optional: make(map[string]prop),
@@ -299,7 +286,7 @@ func getOpenAPIProperties(crd apiextensions.CustomResourceDefinition) props {
 	for n, v := range spec.Properties {
 		p := prop{
 			description: v.Description,
-			t: v.Type,
+			t:           v.Type,
 		}
 		if contains(spec.Required, n) {
 			props.required[n] = p

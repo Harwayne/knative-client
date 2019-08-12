@@ -15,16 +15,11 @@
 package importer
 
 import (
-	"encoding/json"
-	"fmt"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/knative/client/pkg/kn/commands"
 	hprinters "github.com/knative/client/pkg/printers"
-	duckv1beta1 "github.com/knative/pkg/apis/duck/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"knative.dev/pkg/apis/duck/v1beta1"
 )
 
 // ServiceListHandlers adds print handlers for service list command
@@ -64,17 +59,4 @@ func printTrigger(c *unstructured.Unstructured, options hprinters.PrintOptions) 
 		name,
 		age)
 	return []metav1beta1.TableRow{row}, nil
-}
-
-func toConditions(conditions v1beta1.Conditions) duckv1beta1.Conditions {
-	j, err := json.Marshal(conditions)
-	if err != nil {
-		panic(fmt.Errorf("marshalling json: %v", err))
-	}
-	c := duckv1beta1.Conditions{}
-	err = json.Unmarshal(j, &c)
-	if err != nil {
-		panic(fmt.Errorf("unmarshalling json: %v", err))
-	}
-	return c
 }
