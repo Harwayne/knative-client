@@ -49,6 +49,9 @@ type KnClient interface {
 
 	// Wait for a service to become ready, but not longer than provided timeout
 	WaitForTrigger(name string, timeout time.Duration) error
+
+	// Wait for a service to become ready, but not longer than provided timeout
+	WaitForBroker(name string, timeout time.Duration) error
 }
 
 type listConfigCollector struct {
@@ -176,6 +179,12 @@ func (cl *kneClient) WaitForTrigger(name string, timeout time.Duration) error {
 	return waitForReady.Wait(name, timeout)
 }
 
+// Wait for a Broker to become ready, but not longer than provided timeout
+func (cl *kneClient) WaitForBroker(name string, timeout time.Duration) error {
+	waitForReady := newBrokerWaitForReady(cl.client.Brokers(cl.namespace).Watch)
+	return waitForReady.Wait(name, timeout)
+}
+
 // update with the v1alpha1 group + version
 func updateEventingGVK(obj runtime.Object) error {
 	return eventing.UpdateGroupVersionKind(obj, v1alpha1.SchemeGroupVersion)
@@ -191,12 +200,31 @@ func newTriggerWaitForReady(watch wait.WatchFunc) wait.WaitForReady {
 		triggerConditionExtractor)
 }
 
+
 func triggerConditionExtractor(obj runtime.Object) (apis.Conditions, error) {
 	t, ok := obj.(*v1alpha1.Trigger)
 	if !ok {
 		return nil, fmt.Errorf("%v is not a trigger", obj)
 	}
 	return ToServingConditions(t.Status.Conditions)
+}
+// Create wait arguments for a Knative service which can be used to wait for
+// a create/update options to be finished
+// Can be used by `service_create` and `service_update`, hence this extra file
+func newBrokerWaitForReady(watch wait.WatchFunc) wait.WaitForReady {
+	return wait.NewWaitForReadyIgnoreGeneration(
+		"broker",
+		watch,
+		brokerConditionExtractor)
+}
+
+
+func brokerConditionExtractor(obj runtime.Object) (apis.Conditions, error) {
+	b, ok := obj.(*v1alpha1.Broker)
+	if !ok {
+		return nil, fmt.Errorf("%v is not a trigger", obj)
+	}
+	return ToServingConditions(b.Status.Conditions)
 }
 
 func ToServingConditions(conditions v1beta1.Conditions) (apis.Conditions, error) {

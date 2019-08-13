@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package trigger
+package eventing
 
 import (
 	"fmt"
@@ -29,32 +29,35 @@ const (
 	MaxUpdateRetries = 3
 )
 
-func NewTriggerCommand(p *commands.KnParams) *cobra.Command {
-	triggerCmd := &cobra.Command{
-		Use: "trigger",
-		Aliases: []string{
-			"triggers",
-		},
-		Short: "Trigger command group",
+func NewEventingCommand(p *commands.KnParams) *cobra.Command {
+	eventingCmd := &cobra.Command{
+		Use:   "eventing",
+		Short: "Eventing command group",
 	}
-	triggerCmd.AddCommand(
-		NewTriggerListCommand(p),
-		NewTriggerDescribeCommand(p),
-		NewTriggerCreateCommand(p),
-		NewTriggerDeleteCommand(p),
-		NewTriggerUpdateCommand(p))
-	return triggerCmd
+	eventingCmd.AddCommand(NewEventingActivateCommand(p))
+	return eventingCmd
 }
 
-func waitForTrigger(client eventing_kn_v1alpha1.KnClient, triggerName string, out io.Writer, timeout int) error {
-	fmt.Fprintf(out, "Waiting for Trigger '%s' to become ready ... ", triggerName)
+func waitForBroker(client eventing_kn_v1alpha1.KnClient, name string, out io.Writer, timeout int) error {
+	fmt.Fprintf(out, "Waiting for Broker '%s' to become ready ... ", name)
 	flush(out)
 
-	err := client.WaitForTrigger(triggerName, time.Duration(timeout)*time.Second)
+	err := client.WaitForBroker(name, time.Duration(timeout)*time.Second)
 	if err != nil {
 		fmt.Fprintln(out)
 		return err
 	}
 	fmt.Fprintln(out, "OK")
 	return nil
+}
+
+// Duck type for writers having a flush
+type flusher interface {
+	Flush() error
+}
+
+func flush(out io.Writer) {
+	if flusher, ok := out.(flusher); ok {
+		flusher.Flush()
+	}
 }
