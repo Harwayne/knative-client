@@ -22,6 +22,7 @@ Manage your Knative building blocks:
 
 ### SEE ALSO
 
+* [kn eventing](kn_eventing.md)	 - Eventing command group
 * [kn importer](kn_importer.md)	 - Importer command group
 * [kn plugin](kn_plugin.md)	 - Plugin command group
 * [kn revision](kn_revision.md)	 - Revision command group

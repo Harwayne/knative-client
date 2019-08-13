@@ -200,7 +200,6 @@ func newTriggerWaitForReady(watch wait.WatchFunc) wait.WaitForReady {
 		triggerConditionExtractor)
 }
 
-
 func triggerConditionExtractor(obj runtime.Object) (apis.Conditions, error) {
 	t, ok := obj.(*v1alpha1.Trigger)
 	if !ok {
@@ -208,6 +207,7 @@ func triggerConditionExtractor(obj runtime.Object) (apis.Conditions, error) {
 	}
 	return ToServingConditions(t.Status.Conditions)
 }
+
 // Create wait arguments for a Knative service which can be used to wait for
 // a create/update options to be finished
 // Can be used by `service_create` and `service_update`, hence this extra file
@@ -217,7 +217,6 @@ func newBrokerWaitForReady(watch wait.WatchFunc) wait.WaitForReady {
 		watch,
 		brokerConditionExtractor)
 }
-
 
 func brokerConditionExtractor(obj runtime.Object) (apis.Conditions, error) {
 	b, ok := obj.(*v1alpha1.Broker)
