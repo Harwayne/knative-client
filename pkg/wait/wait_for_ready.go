@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/prometheus/common/log"
-
 	"github.com/knative/pkg/apis"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,7 +110,6 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 
 	watcher, err := w.watchFunc(opts)
 	if err != nil {
-		log.Errorf("waitForReadyCOndition ", err)
 		return false, false, err
 	}
 
@@ -125,7 +122,6 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 			return false, true, nil
 		case event, ok := <-watcher.ResultChan():
 			if !ok || event.Object == nil {
-				log.Error(1)
 				return true, false, nil
 			}
 
@@ -133,22 +129,18 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 				// Skip event if generations has not yet been consolidated
 				inSync, err := isGivenEqualsObservedGeneration(event.Object)
 				if err != nil {
-					log.Error(2, err)
 					return false, false, err
 				}
 				if !inSync {
-					log.Error(3)
 					continue
 				}
 			}
 
 			conditions, err := w.conditionsExtractor(event.Object)
 			if err != nil {
-				log.Error(4, err)
 				return false, false, err
 			}
 			for _, cond := range conditions {
-				//log.Error("condition ", cond)
 				if cond.Type == apis.ConditionReady {
 					switch cond.Status {
 					case corev1.ConditionTrue:
@@ -156,12 +148,11 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 					case corev1.ConditionFalse:
 						if w.ignoreGeneration {
 							attempts += 1
-							if attempts < 5 {
-								//log.Error("attempts", attempts)
+							if attempts < 15 {
+								time.Sleep(time.Second)
 								continue
 							}
 						}
-						log.Error(6)
 						return false, false, fmt.Errorf("%s: %s", cond.Reason, cond.Message)
 					}
 				}
@@ -174,7 +165,6 @@ func (w *waitForReadyConfig) waitForReadyCondition(opts v1.ListOptions, name str
 // Alternative implemenentation: Add a func-field to waitForReadyConfig which has to be
 // provided for every resource (like the conditions extractor)
 func isGivenEqualsObservedGeneration(object runtime.Object) (bool, error) {
-	//log.Error(fmt.Sprintf("%+v", object))
 	unstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 	if err != nil {
 		return false, err
