@@ -21,27 +21,20 @@ import (
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 )
 
-const (
-	labelKey          = "knative-eventing-injection"
-	enabledLabelValue = "enabled"
-)
-
-var (
-	nsGVR = corev1.SchemeGroupVersion.WithResource("namespaces")
-)
-
-func NewEventingActivateCommand(p *commands.KnParams) *cobra.Command {
+func NewEventingDeactivateCommand(p *commands.KnParams) *cobra.Command {
 	var waitFlags commands.WaitFlags
 
 	eventingActivateCommand := &cobra.Command{
-		Use:   "activate",
-		Short: "Activate Knative eventing in the given namespace.",
+		Use:   "deactivate",
+		Short: "Deactivate Knative eventing in the given namespace.",
+		Long: `
+Deactivate Knative eventing in the given namespace. This does not delete
+anything currently running. Rather it will stop reconciling that namespace. So
+if anything is altered or deleted, nothing will put it back into a working
+state.`,
 		Example: `
   # Activate Knative eventing in the namespace that kn is associated with.
   kn eventing activate
@@ -66,7 +59,7 @@ func NewEventingActivateCommand(p *commands.KnParams) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			err = addLabel(client, ns)
+			err = removeLabel(client, ns)
 			if err != nil {
 				return err
 			}
@@ -84,7 +77,11 @@ func NewEventingActivateCommand(p *commands.KnParams) *cobra.Command {
 				return nil
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Eventing has been activated in namespace '%s'.\n", ns.Name)
+			msg :=
+				`Eventing has been deactivated in namespace %q. Nothing has been removed, so
+anything already working will continue to work. However, if any pieces are
+altered or deleted, they will not be fixed.`
+			fmt.Fprintf(cmd.OutOrStdout(), msg, ns.Name)
 			return nil
 		},
 	}
@@ -93,38 +90,10 @@ func NewEventingActivateCommand(p *commands.KnParams) *cobra.Command {
 	return eventingActivateCommand
 }
 
-func getNamespace(c dynamic.Interface, name string) (corev1.Namespace, error) {
-	u, err := c.Resource(nsGVR).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return corev1.Namespace{}, err
-	}
-
-	var ns corev1.Namespace
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &ns); err != nil {
-		return corev1.Namespace{}, fmt.Errorf("converting unstructured: %v", err)
-	}
-	return ns, nil
-}
-
-func updateNS(client dynamic.Interface, ns corev1.Namespace) error {
-	m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ns)
-	if err != nil {
-		return err
-	}
-	u := &unstructured.Unstructured{
-		Object: m,
-	}
-	_, err = client.Resource(nsGVR).Update(u, metav1.UpdateOptions{})
-	return err
-}
-
-func addLabel(client dynamic.Interface, ns corev1.Namespace) error {
-	if ns.Labels[labelKey] == enabledLabelValue {
+func removeLabel(client dynamic.Interface, ns corev1.Namespace) error {
+	if ns.Labels[labelKey] != enabledLabelValue {
 		return nil
 	}
-	if ns.Labels == nil {
-		ns.Labels = make(map[string]string)
-	}
-	ns.Labels[labelKey] = enabledLabelValue
+	delete(ns.Labels, labelKey)
 	return updateNS(client, ns)
 }

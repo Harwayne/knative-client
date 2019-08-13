@@ -34,7 +34,9 @@ func NewEventingCommand(p *commands.KnParams) *cobra.Command {
 		Use:   "eventing",
 		Short: "Eventing command group",
 	}
-	eventingCmd.AddCommand(NewEventingActivateCommand(p))
+	eventingCmd.AddCommand(
+		NewEventingActivateCommand(p),
+		NewEventingDeactivateCommand(p))
 	return eventingCmd
 }
 
