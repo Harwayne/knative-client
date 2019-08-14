@@ -95,13 +95,18 @@ func (s secret) Set(f string) error {
 		return fmt.Errorf("did not match the expected syntax (missing '=') %q", f)
 	}
 	s.specField = f[:i]
-	sks := f[i:]
+	if len(f) < i+1 {
+		return fmt.Errorf("did not match expected synatax (nothing after '=') %q", f)
+	}
+	sks := f[i+1:]
 	i = strings.Index(sks, ":")
 	if i < 0 {
 		return fmt.Errorf("did not match the expected syntax (missing ':') %q", f)
+	} else if len(sks) < i+1 {
+		return fmt.Errorf("did not match expected syntax (nothing after ':') %q", f)
 	}
 	s.name = sks[:i]
-	s.key = sks[i:]
+	s.key = sks[i+1:]
 
 	if s.specField == "" {
 		return fmt.Errorf("empty specField %q", f)
