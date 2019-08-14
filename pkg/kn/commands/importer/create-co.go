@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -98,9 +99,9 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
 						"cannot create importer '%s' in namespace '%s' "+
 							"because the importer already exists and no --force option was given", name, ns)
 				}
-				err = replaceImporter(nc, importer, cmd.OutOrStdout())
+				importer, err = replaceImporter(nc, importer, cmd.OutOrStdout())
 			} else {
-				err = createImporter(nc, importer, cmd.OutOrStdout())
+				importer, err = createImporter(nc, importer, cmd.OutOrStdout())
 			}
 			if err != nil {
 				return err
@@ -108,7 +109,8 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
 
 			if !waitFlags.Async {
 				out := cmd.OutOrStdout()
-				err := waitForImporter(nc, name, out, waitFlags.TimeoutInSeconds)
+				timeout := time.Duration(waitFlags.TimeoutInSeconds) * time.Second
+				err := waitForUnstructured(nc, importer.GetName(), out, timeout)
 				if err != nil {
 					return err
 				}
@@ -135,21 +137,21 @@ func flush(out io.Writer) {
 	}
 }
 
-func createImporter(client dynamic.ResourceInterface, importer *unstructured.Unstructured, out io.Writer) error {
+func createImporter(client dynamic.ResourceInterface, importer *unstructured.Unstructured, out io.Writer) (*unstructured.Unstructured, error) {
 	created, err := client.Create(importer, metav1.CreateOptions{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(out, "Importer '%s' successfully created in namespace '%s'.\n", created.GetName(), created.GetNamespace())
-	return nil
+	return created, nil
 }
 
-func replaceImporter(client dynamic.ResourceInterface, importer *unstructured.Unstructured, out io.Writer) error {
+func replaceImporter(client dynamic.ResourceInterface, importer *unstructured.Unstructured, out io.Writer) (*unstructured.Unstructured, error) {
 	var retries = 0
 	for {
 		existingImporter, err := client.Get(importer.GetName(), metav1.GetOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Copy over some annotations that we want to keep around. Erase others
@@ -175,10 +177,10 @@ func replaceImporter(client dynamic.ResourceInterface, importer *unstructured.Un
 				retries++
 				continue
 			}
-			return err
+			return nil, err
 		}
 		fmt.Fprintf(out, "Importer '%s' successfully replaced in namespace '%s'.\n", updated.GetName(), updated.GetNamespace())
-		return nil
+		return updated, nil
 	}
 }
 
