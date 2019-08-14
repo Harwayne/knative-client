@@ -44,7 +44,8 @@ func NewImporterCommand(p *commands.KnParams) *cobra.Command {
 		NewImporterListCommand(p),
 		NewImporterDescribeCommand(p),
 		NewImporterCreateCOCommand(p),
-		NewImporterDeleteCOCommand(p))
+		NewImporterDeleteCOCommand(p),
+		NewImporterListCOCommand(p))
 	return importerCmd
 }
 
