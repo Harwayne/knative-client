@@ -15,20 +15,39 @@
 package importer
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 )
 
 type importerEditFlags struct {
-	Broker     string
-	Parameters map[string]string
+	Broker             string
+	Parameters         map[string]string
+	EventTypes         []string
+	ExtensionOverrides map[string]string
+	Secret             secret
 
 	ForceCreate bool
 }
 
+type secret struct {
+	set       bool
+	specField string
+	name      string
+	key       string
+}
+
+var _ pflag.Value = (*secret)(nil)
+
 func (p *importerEditFlags) AddUpdateFlags(command *cobra.Command) {
 	command.Flags().StringVar(&p.Broker, "broker", "default", "Broker the Importer associates with.")
 	command.Flags().StringToStringVar(&p.Parameters, "parameters", make(map[string]string), "Parameters used in the spec of the created importer, expressed as a CSV.")
+	command.Flags().StringSliceVar(&p.EventTypes, "eventTypes", []string{}, "Comma separated list of event types.")
+	command.Flags().StringToStringVar(&p.ExtensionOverrides, "extensionOverrides", make(map[string]string), "CloudEvent extension attribute overrides.")
+	command.Flags().Var(&p.Secret, "secret", "Secret to inject into the spec as a SecretKeySelector. In the form `specField=secretName:key`. Which will set `spec.specField` to a SecretKeySelector.")
 }
 
 func (p *importerEditFlags) AddCreateFlags(command *cobra.Command) {
@@ -46,6 +65,57 @@ func (p *importerEditFlags) Apply(m map[string]interface{}, cmd *cobra.Command) 
 		Kind:       "Broker",
 		Name:       p.Broker,
 	}
+	if len(p.EventTypes) > 0 {
+		spec["eventTypes"] = p.EventTypes
+	}
+	if len(p.ExtensionOverrides) > 0 {
+		spec["ceOverrides"] = map[string]interface{}{
+			"extensions": p.ExtensionOverrides,
+		}
+	}
+	if p.Secret.set {
+		spec[p.Secret.specField] = v1.SecretKeySelector{
+			LocalObjectReference: v1.LocalObjectReference{
+				Name: p.Secret.name,
+			},
+			Key: p.Secret.key,
+		}
+	}
 	m["spec"] = spec
 	return nil
+}
+
+func (s secret) String() string {
+	return fmt.Sprintf("%s=%s:%s", s.specField, s.name, s.key)
+}
+
+func (s secret) Set(f string) error {
+	i := strings.Index(f, "=")
+	if i < 0 {
+		return fmt.Errorf("did not match the expected syntax (missing '=') %q", f)
+	}
+	s.specField = f[:i]
+	sks := f[i:]
+	i = strings.Index(sks, ":")
+	if i < 0 {
+		return fmt.Errorf("did not match the expected syntax (missing ':') %q", f)
+	}
+	s.name = sks[:i]
+	s.key = sks[i:]
+
+	if s.specField == "" {
+		return fmt.Errorf("empty specField %q", f)
+	}
+	if s.name == "" {
+		return fmt.Errorf("empty secret name %q", f)
+	}
+	if s.key == "" {
+		return fmt.Errorf("empty secret key %q", f)
+	}
+	s.set = true
+	return nil
+}
+
+func (s secret) Type() string {
+	return "secret"
 }
