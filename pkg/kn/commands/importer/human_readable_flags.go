@@ -17,7 +17,7 @@ package importer
 import (
 	"github.com/knative/client/pkg/kn/commands"
 	hprinters "github.com/knative/client/pkg/printers"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -35,7 +35,7 @@ func ImporterListHandlers(h hprinters.PrintHandler) {
 // Private functions
 
 // printKServiceList populates the knative service list table rows
-func printTriggerList(cl *unstructured.UnstructuredList, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
+func printTriggerList(cl *v1beta1.CustomResourceDefinitionList, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
 	rows := make([]metav1beta1.TableRow, 0, len(cl.Items))
 	for _, i := range cl.Items {
 		r, err := printTrigger(&i, options)
@@ -48,7 +48,7 @@ func printTriggerList(cl *unstructured.UnstructuredList, options hprinters.Print
 }
 
 // printKService populates the knative service table rows
-func printTrigger(c *unstructured.Unstructured, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
+func printTrigger(c *v1beta1.CustomResourceDefinition, options hprinters.PrintOptions) ([]metav1beta1.TableRow, error) {
 	name := c.GetName()
 	age := commands.TranslateTimestampSince(c.GetCreationTimestamp())
 

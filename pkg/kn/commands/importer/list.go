@@ -17,12 +17,13 @@ package importer
 import (
 	"fmt"
 
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+
 	"github.com/prometheus/common/log"
 	"k8s.io/apimachinery/pkg/labels"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 
 	"github.com/knative/client/pkg/kn/commands"
@@ -46,11 +47,14 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
   # List trigger 'web'
   kn trigger list web`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("'kn service list' accepts maximum 1 argument")
+			}
 			client, err := p.NewDynamicClient()
 			if err != nil {
 				return err
 			}
-			crdList, err := getCRDInfo(args, client)
+			crdList, err := listImporterCRDs(client)
 			if err != nil {
 				return err
 			}
@@ -63,7 +67,7 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
 				return err
 			}
 
-			err = printer.PrintObj(crdList, cmd.OutOrStdout())
+			err = printer.PrintObj(&crdList, cmd.OutOrStdout())
 			if err != nil {
 				log.Error(2)
 				return err
@@ -76,20 +80,23 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
 	return triggerListCommand
 }
 
-func getCRDInfo(args []string, client dynamic.Interface) (*unstructured.UnstructuredList, error) {
-	var (
-		cl  *unstructured.UnstructuredList
-		err error
-	)
-	switch len(args) {
-	case 0:
-		cl, err = client.Resource(crdGVK).List(v1.ListOptions{
-			LabelSelector: labels.SelectorFromSet(map[string]string{
-				"eventing.knative.dev/source": "true",
-			}).String(),
-		})
-	default:
-		return nil, fmt.Errorf("'kn service list' accepts maximum 1 argument")
+func listImporterCRDs(client dynamic.Interface) (v1beta1.CustomResourceDefinitionList, error) {
+	uList, err := client.Resource(crdGVK).List(v1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(map[string]string{
+			"eventing.knative.dev/source": "true",
+		}).String(),
+	})
+	if err != nil {
+		return v1beta1.CustomResourceDefinitionList{}, err
 	}
-	return cl, err
+
+	crdList := v1beta1.CustomResourceDefinitionList{}
+	for _, u := range uList.Items {
+		crd, err := crd(&u)
+		if err != nil {
+			return v1beta1.CustomResourceDefinitionList{}, err
+		}
+		crdList.Items = append(crdList.Items, crd)
+	}
+	return crdList, nil
 }
