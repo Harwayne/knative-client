@@ -29,7 +29,7 @@ import (
 )
 
 func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
-	var editFlags triggerEditFlags
+	var editFlags EditFlags
 	var waitFlags commands.WaitFlags
 
 	triggerCreateCommand := &cobra.Command{
@@ -57,65 +57,74 @@ func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
   # (earlier configured environment variables will be cleared too if any)
   kn trigger create --force s1 --image dev.local/ns/image:v1`,
 
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			if len(args) != 1 {
-				return errors.New("'trigger create' requires the trigger name given as single argument")
-			}
-			name := args[0]
-			if editFlags.SubscriberName == "" {
-				return errors.New("'trigger create' requires the subscriber name to run provided with the --subscriber option")
-			}
-
-			namespace, err := p.GetNamespace(cmd)
-			if err != nil {
-				return err
-			}
-
-			trigger, err := constructTrigger(cmd, editFlags, name, namespace)
-			if err != nil {
-				return err
-			}
-
-			client, err := p.NewEventingClient(namespace)
-			if err != nil {
-				return err
-			}
-
-			triggerExists, err := triggerExists(client, name, namespace)
-			if err != nil {
-				return err
-			}
-
-			if triggerExists {
-				if !editFlags.ForceCreate {
-					return fmt.Errorf(
-						"cannot create trigger '%s' in namespace '%s' "+
-							"because the trigger already exists and no --force option was given", name, namespace)
-				}
-				err = replaceTrigger(client, trigger, namespace, cmd.OutOrStdout())
-			} else {
-				err = createTrigger(client, trigger, namespace, cmd.OutOrStdout())
-			}
-			if err != nil {
-				return err
-			}
-
-			if !waitFlags.Async {
-				out := cmd.OutOrStdout()
-				err := waitForTrigger(client, name, out, waitFlags.TimeoutInSeconds)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-
-			return nil
+		RunE: func(cmd *cobra.Command, args []string) error {
+			f := triggerCreateFunc(p, &editFlags, &waitFlags)
+			_, err := f(cmd, args)
+			return err
 		},
 	}
 	commands.AddNamespaceFlags(triggerCreateCommand.Flags(), false)
-	editFlags.AddCreateFlags(triggerCreateCommand)
+	editFlags.AddCreateFlags(triggerCreateCommand, true)
 	waitFlags.AddConditionWaitFlags(triggerCreateCommand, 60, "Create", "trigger")
 	return triggerCreateCommand
+}
+
+func triggerCreateFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *commands.WaitFlags) func(cmd *cobra.Command, args []string) (*eventing_v1alpha1_api.Trigger, error) {
+	return func(cmd *cobra.Command, args []string) (*eventing_v1alpha1_api.Trigger, error) {
+		if len(args) != 1 {
+			return nil, errors.New("'trigger create' requires the trigger name given as single argument")
+		}
+		name := args[0]
+		if editFlags.SubscriberName == "" {
+			return nil, errors.New("'trigger create' requires the subscriber name to run provided with the --subscriber option")
+		}
+
+		namespace, err := p.GetNamespace(cmd)
+		if err != nil {
+			return nil, err
+		}
+
+		trigger, err := constructTrigger(cmd, *editFlags, name, namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		client, err := p.NewEventingClient(namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		triggerExists, err := triggerExists(client, name, namespace)
+		if err != nil {
+			return nil, err
+		}
+
+		var createdTrigger *eventing_v1alpha1_api.Trigger
+		if triggerExists {
+			if !editFlags.ForceCreate {
+				return nil, fmt.Errorf(
+					"cannot create trigger '%s' in namespace '%s' "+
+						"because the trigger already exists and no --force option was given", name, namespace)
+			}
+			createdTrigger, err = replaceTrigger(client, trigger, namespace, cmd.OutOrStdout())
+		} else {
+			createdTrigger, err = createTrigger(client, trigger, namespace, cmd.OutOrStdout())
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if !waitFlags.Async {
+			out := cmd.OutOrStdout()
+			err := waitForTrigger(client, name, out, waitFlags.TimeoutInSeconds)
+			if err != nil {
+				return nil, err
+			}
+			return createdTrigger, nil
+		}
+
+		return createdTrigger, nil
+	}
 }
 
 // Duck type for writers having a flush
@@ -129,21 +138,21 @@ func flush(out io.Writer) {
 	}
 }
 
-func createTrigger(client v1alpha1.KnClient, trigger *eventing_v1alpha1_api.Trigger, namespace string, out io.Writer) error {
-	err := client.CreateTrigger(trigger)
+func createTrigger(client v1alpha1.KnClient, trigger *eventing_v1alpha1_api.Trigger, namespace string, out io.Writer) (*eventing_v1alpha1_api.Trigger, error) {
+	createdTrigger, err := client.CreateTrigger(trigger)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Fprintf(out, "Trigger '%s' successfully created in namespace '%s'.\n", trigger.Name, namespace)
-	return nil
+	return createdTrigger, nil
 }
 
-func replaceTrigger(client v1alpha1.KnClient, trigger *eventing_v1alpha1_api.Trigger, namespace string, out io.Writer) error {
+func replaceTrigger(client v1alpha1.KnClient, trigger *eventing_v1alpha1_api.Trigger, namespace string, out io.Writer) (*eventing_v1alpha1_api.Trigger, error) {
 	var retries = 0
 	for {
 		existingTrigger, err := client.GetTrigger(trigger.Name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Copy over some annotations that we want to keep around. Erase others
@@ -167,17 +176,17 @@ func replaceTrigger(client v1alpha1.KnClient, trigger *eventing_v1alpha1_api.Tri
 		}
 
 		trigger.ResourceVersion = existingTrigger.ResourceVersion
-		err = client.UpdateTrigger(trigger)
+		updatedTrigger, err := client.UpdateTrigger(trigger)
 		if err != nil {
 			// Retry to update when a resource version conflict exists
 			if api_errors.IsConflict(err) && retries < MaxUpdateRetries {
 				retries++
 				continue
 			}
-			return err
+			return nil, err
 		}
 		fmt.Fprintf(out, "Trigger '%s' successfully replaced in namespace '%s'.\n", trigger.Name, namespace)
-		return nil
+		return updatedTrigger, nil
 	}
 }
 
@@ -193,7 +202,7 @@ func triggerExists(client v1alpha1.KnClient, name string, namespace string) (boo
 }
 
 // Create trigger struct from provided options
-func constructTrigger(cmd *cobra.Command, editFlags triggerEditFlags, name string, namespace string) (*eventing_v1alpha1_api.Trigger,
+func constructTrigger(cmd *cobra.Command, editFlags EditFlags, name string, namespace string) (*eventing_v1alpha1_api.Trigger,
 	error) {
 
 	trigger := eventing_v1alpha1_api.Trigger{

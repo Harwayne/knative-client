@@ -39,10 +39,10 @@ type KnClient interface {
 	ListTriggers(opts ...ListConfig) (*v1alpha1.TriggerList, error)
 
 	// Create a new service
-	CreateTrigger(service *v1alpha1.Trigger) error
+	CreateTrigger(service *v1alpha1.Trigger) (*v1alpha1.Trigger, error)
 
 	// Update the given service
-	UpdateTrigger(service *v1alpha1.Trigger) error
+	UpdateTrigger(service *v1alpha1.Trigger) (*v1alpha1.Trigger, error)
 
 	// Delete a service by name
 	DeleteTrigger(name string) error
@@ -148,21 +148,27 @@ func (cl *kneClient) ListTriggers(config ...ListConfig) (*v1alpha1.TriggerList, 
 }
 
 // Create a new trigger
-func (cl *kneClient) CreateTrigger(trigger *v1alpha1.Trigger) error {
-	_, err := cl.client.Triggers(cl.namespace).Create(trigger)
+func (cl *kneClient) CreateTrigger(trigger *v1alpha1.Trigger) (*v1alpha1.Trigger, error) {
+	createdTrigger, err := cl.client.Triggers(cl.namespace).Create(trigger)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return updateEventingGVK(trigger)
+	if err = updateEventingGVK(createdTrigger); err != nil {
+		return nil, err
+	}
+	return createdTrigger, nil
 }
 
 // Update the given trigger
-func (cl *kneClient) UpdateTrigger(trigger *v1alpha1.Trigger) error {
-	_, err := cl.client.Triggers(cl.namespace).Update(trigger)
+func (cl *kneClient) UpdateTrigger(trigger *v1alpha1.Trigger) (*v1alpha1.Trigger, error) {
+	updatedTrigger, err := cl.client.Triggers(cl.namespace).Update(trigger)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return updateEventingGVK(trigger)
+	if err = updateEventingGVK(updatedTrigger); err != nil {
+		return nil, err
+	}
+	return updatedTrigger, nil
 }
 
 // Delete a trigger by name

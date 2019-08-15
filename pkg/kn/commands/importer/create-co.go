@@ -20,21 +20,23 @@ import (
 	"io"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"k8s.io/client-go/dynamic"
-
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/eventing/pkg/apis/eventing"
 	"github.com/spf13/cobra"
 	api_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+)
+
+var (
+	trueVal = true
 )
 
 func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
-	var editFlags importerEditFlags
+	var editFlags EditFlags
 	var waitFlags commands.WaitFlags
 
 	importerCreateCommand := &cobra.Command{
@@ -62,68 +64,114 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
   # (earlier configured environment variables will be cleared too if any)
   kn importer create --force s1 --image dev.local/ns/image:v1`,
 
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			if len(args) != 2 {
-				return errors.New("'importer create-co' requires the importer CRD name as the first argument and the CO name as the second argument")
-			}
-			crdName := args[0]
-			name := args[1]
-
-			ns, err := p.GetNamespace(cmd)
-			if err != nil {
-				return err
-			}
-
-			client, crd, err := getCRD(p, crdName)
-			if err != nil {
-				return err
-			}
-			gvr := getGVR(crd)
-			gvk := getGVK(crd)
-
-			importer, err := constructImporter(cmd, gvk, editFlags, name, ns)
-			if err != nil {
-				return err
-			}
-
-			nc := client.Resource(gvr).Namespace(ns)
-
-			importerExists, err := importerExists(nc, name)
-			if err != nil {
-				return err
-			}
-
-			if importerExists {
-				if !editFlags.ForceCreate {
-					return fmt.Errorf(
-						"cannot create importer '%s' in namespace '%s' "+
-							"because the importer already exists and no --force option was given", name, ns)
-				}
-				importer, err = replaceImporter(nc, importer, cmd.OutOrStdout())
-			} else {
-				importer, err = createImporter(nc, importer, cmd.OutOrStdout())
-			}
-			if err != nil {
-				return err
-			}
-
-			if !waitFlags.Async {
-				out := cmd.OutOrStdout()
-				timeout := time.Duration(waitFlags.TimeoutInSeconds) * time.Second
-				err := waitForUnstructured(nc, importer.GetName(), out, timeout)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-
-			return nil
-		},
+		RunE: CreateCOFunc(p, &editFlags, &waitFlags),
 	}
 	commands.AddNamespaceFlags(importerCreateCommand.Flags(), false)
 	editFlags.AddCreateFlags(importerCreateCommand)
 	waitFlags.AddConditionWaitFlags(importerCreateCommand, 60, "Create", "importer")
 	return importerCreateCommand
+}
+
+func CreateCOFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *commands.WaitFlags, options ...Option) func(cmd *cobra.Command, args []string) (err error) {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) != 2 {
+			return errors.New("'importer create-co' requires the importer CRD name as the first argument and the CO name as the second argument")
+		}
+		crdName := args[0]
+		name := args[1]
+
+		ns, err := p.GetNamespace(cmd)
+		if err != nil {
+			return err
+		}
+
+		client, crd, err := getCRD(p, crdName)
+		if err != nil {
+			return err
+		}
+		gvr := getGVR(crd)
+		gvk := getGVK(crd)
+
+		importer, err := constructImporter(cmd, gvk, *editFlags, name, ns)
+		if err != nil {
+			return err
+		}
+
+		for _, option := range options {
+			if err = option(importer); err != nil {
+				return err
+			}
+		}
+
+		nc := client.Resource(gvr).Namespace(ns)
+
+		importerExists, err := importerExists(nc, name)
+		if err != nil {
+			return err
+		}
+
+		if importerExists {
+			if !editFlags.ForceCreate {
+				return fmt.Errorf(
+					"cannot create importer '%s' in namespace '%s' "+
+						"because the importer already exists and no --force option was given", name, ns)
+			}
+			importer, err = replaceImporter(nc, importer, cmd.OutOrStdout())
+		} else {
+			importer, err = createImporter(nc, importer, cmd.OutOrStdout())
+		}
+		if err != nil {
+			return err
+		}
+
+		if !waitFlags.Async {
+			out := cmd.OutOrStdout()
+			timeout := time.Duration(waitFlags.TimeoutInSeconds) * time.Second
+			err := waitForUnstructured(nc, importer.GetName(), out, timeout)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+
+		return nil
+	}
+}
+
+type Option func(*unstructured.Unstructured) error
+
+func WithControllingOwner(owner metav1.Object) Option {
+	return func(u *unstructured.Unstructured) error {
+		unstructuredMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(owner)
+		if err != nil {
+			return err
+		}
+		o := unstructured.Unstructured{
+			Object: unstructuredMap,
+		}
+		owners := u.GetOwnerReferences()
+		owners = append(owners, metav1.OwnerReference{
+			APIVersion: o.GetAPIVersion(),
+			Kind:       o.GetKind(),
+			Name:       o.GetName(),
+			UID:        o.GetUID(),
+			Controller: &trueVal,
+		})
+		u.SetOwnerReferences(owners)
+		// log.Error("WithControllingOwner.afterSet ", u.GetOwnerReferences(), " ::: I had set ", owners)
+
+		// u.SetOwnerReferences(owners) doesn't seem to work...so do it the hard way.
+		var metadata metav1.ObjectMeta
+		var ok bool
+		if metadata, ok = u.Object["metadata"].(metav1.ObjectMeta); !ok {
+			return errors.New("not an ObjectMeta")
+		}
+		metadata.OwnerReferences = owners
+		u.Object["metadata"] = metadata
+		// log.Error("WithControllingOwner.afterManualSet ", u.GetOwnerReferences(), " ::: I had set ", owners)
+
+		return nil
+	}
 }
 
 // Duck type for writers having a flush
@@ -196,7 +244,7 @@ func importerExists(client dynamic.ResourceInterface, name string) (bool, error)
 }
 
 // Create importer struct from provided options
-func constructImporter(cmd *cobra.Command, gvk schema.GroupVersionKind, editFlags importerEditFlags, name string, ns string) (*unstructured.Unstructured, error) {
+func constructImporter(cmd *cobra.Command, gvk schema.GroupVersionKind, editFlags EditFlags, name string, ns string) (*unstructured.Unstructured, error) {
 	m := make(map[string]interface{})
 	m["metadata"] = metav1.ObjectMeta{
 		Name:      name,

@@ -23,7 +23,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type importerEditFlags struct {
+type EditFlags struct {
 	Broker             string
 	Parameters         map[string]string
 	EventTypes         []string
@@ -42,7 +42,7 @@ type secret struct {
 
 var _ pflag.Value = (*secret)(nil)
 
-func (p *importerEditFlags) AddUpdateFlags(command *cobra.Command) {
+func (p *EditFlags) addUpdateFlags(command *cobra.Command) {
 	command.Flags().StringVar(&p.Broker, "broker", "default", "Broker the Importer associates with.")
 	command.Flags().StringToStringVar(&p.Parameters, "parameters", make(map[string]string), "Parameters used in the spec of the created importer, expressed as a CSV.")
 	command.Flags().StringSliceVar(&p.EventTypes, "eventTypes", []string{}, "Comma separated list of event types.")
@@ -50,12 +50,12 @@ func (p *importerEditFlags) AddUpdateFlags(command *cobra.Command) {
 	command.Flags().Var(&p.Secret, "secret", "Secret to inject into the spec as a SecretKeySelector. In the form `specField=secretName:key`. Which will set `spec.specField` to a SecretKeySelector.")
 }
 
-func (p *importerEditFlags) AddCreateFlags(command *cobra.Command) {
-	p.AddUpdateFlags(command)
+func (p *EditFlags) AddCreateFlags(command *cobra.Command) {
+	p.addUpdateFlags(command)
 	command.Flags().BoolVar(&p.ForceCreate, "force", false, "Create importer forcefully, replaces existing importer if any.")
 }
 
-func (p *importerEditFlags) Apply(m map[string]interface{}, cmd *cobra.Command) error {
+func (p *EditFlags) Apply(m map[string]interface{}, cmd *cobra.Command) error {
 	spec := make(map[string]interface{})
 	for k, v := range p.Parameters {
 		spec[k] = v

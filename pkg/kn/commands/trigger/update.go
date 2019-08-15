@@ -24,7 +24,7 @@ import (
 )
 
 func NewTriggerUpdateCommand(p *commands.KnParams) *cobra.Command {
-	var editFlags triggerEditFlags
+	var editFlags EditFlags
 	var waitFlags commands.WaitFlags
 
 	triggerUpdateCommand := &cobra.Command{
@@ -68,7 +68,7 @@ func NewTriggerUpdateCommand(p *commands.KnParams) *cobra.Command {
 					return err
 				}
 
-				err = client.UpdateTrigger(trigger)
+				_, err = client.UpdateTrigger(trigger)
 				if err != nil {
 					// Retry to update when a resource version conflict exists
 					if api_errors.IsConflict(err) && retries < MaxUpdateRetries {
@@ -96,7 +96,7 @@ func NewTriggerUpdateCommand(p *commands.KnParams) *cobra.Command {
 	}
 
 	commands.AddNamespaceFlags(triggerUpdateCommand.Flags(), false)
-	editFlags.AddUpdateFlags(triggerUpdateCommand)
+	editFlags.AddUpdateFlags(triggerUpdateCommand, true)
 	waitFlags.AddConditionWaitFlags(triggerUpdateCommand, 60, "Update", "trigger")
 	return triggerUpdateCommand
 }
