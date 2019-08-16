@@ -23,6 +23,7 @@ import (
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/eventing/pkg/apis/eventing"
 	"github.com/spf13/cobra"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	api_errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -64,7 +65,7 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
   # (earlier configured environment variables will be cleared too if any)
   kn importer create --force s1 --image dev.local/ns/image:v1`,
 
-		RunE: CreateCOFunc(p, &editFlags, &waitFlags),
+		RunE: CreateCOFunc(p, &editFlags, &waitFlags, nil),
 	}
 	commands.AddNamespaceFlags(importerCreateCommand.Flags(), false)
 	editFlags.AddCreateFlags(importerCreateCommand, "")
@@ -72,7 +73,12 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
 	return importerCreateCommand
 }
 
-func CreateCOFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *commands.WaitFlags, options ...Option) func(cmd *cobra.Command, args []string) (err error) {
+type CRDAndClient struct {
+	Client dynamic.Interface
+	CRD    v1beta1.CustomResourceDefinition
+}
+
+func CreateCOFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *commands.WaitFlags, cc *CRDAndClient, options ...Option) func(cmd *cobra.Command, args []string) error {
 	return func(cmd *cobra.Command, args []string) error {
 		if len(args) != 2 {
 			return errors.New("'importer create-co' requires the importer CRD name as the first argument and the CO name as the second argument")
@@ -85,9 +91,16 @@ func CreateCOFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *command
 			return err
 		}
 
-		client, crd, err := GetCRD(p, crdName)
-		if err != nil {
-			return err
+		var client dynamic.Interface
+		var crd v1beta1.CustomResourceDefinition
+		if cc != nil {
+			client = cc.Client
+			crd = cc.CRD
+		} else {
+			client, crd, err = GetCRD(p, crdName)
+			if err != nil {
+				return err
+			}
 		}
 		gvr := getGVR(crd)
 		gvk := getGVK(crd)

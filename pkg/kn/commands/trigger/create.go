@@ -75,12 +75,15 @@ func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
 
 			triggerEditFlags.CopyDuplicateImporterFlags(importerEditFlags)
 
-			// TODO GetCRD and use its real name, not the guess given on the command line.
+			client, crd, err := gimporter.GetCRD(p, triggerEditFlags.Importer)
+			if err != nil {
+				return err
+			}
 
 			createImporter := triggerEditFlags.Importer != ""
 			if createImporter {
 				// Artificially add the correlating CloudEvent attribute.
-				ceValue := fmt.Sprintf("%s/%s:%s", triggerEditFlags.Importer, ns, name)
+				ceValue := fmt.Sprintf("%s/namespaces/%s/names/%s", crd.Name, ns, name)
 				if triggerEditFlags.FilterAttributes == nil {
 					triggerEditFlags.FilterAttributes = make(map[string]string, 1)
 				}
@@ -98,8 +101,12 @@ func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
 			}
 
 			if createImporter {
-				importerCreate := gimporter.CreateCOFunc(p, &importerEditFlags, &waitFlags, gimporter.WithControllingOwner(createdTrigger))
-				if err := importerCreate(cmd, []string{triggerEditFlags.Importer, name}); err != nil {
+				cc := &gimporter.CRDAndClient{
+					Client: client,
+					CRD:    crd,
+				}
+				importerCreate := gimporter.CreateCOFunc(p, &importerEditFlags, &waitFlags, cc, gimporter.WithControllingOwner(createdTrigger))
+				if err := importerCreate(cmd, []string{"crd-name-is-not-used", name}); err != nil {
 					return err
 				}
 			}
