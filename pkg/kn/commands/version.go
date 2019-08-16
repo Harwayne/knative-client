@@ -24,6 +24,7 @@ var Version string
 var BuildDate string
 var GitRevision string
 var ServingVersion string
+var EventingVersion string
 
 func NewVersionCommand(p *KnParams) *cobra.Command {
 	versionCmd := &cobra.Command{
@@ -35,6 +36,7 @@ func NewVersionCommand(p *KnParams) *cobra.Command {
 			fmt.Printf("Git Revision: %s\n", GitRevision)
 			fmt.Printf("Dependencies:\n")
 			fmt.Printf("- serving:    %s\n", ServingVersion)
+			fmt.Printf("- eventing:    %s\n", EventingVersion)
 			return nil
 		},
 	}
