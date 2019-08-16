@@ -42,16 +42,21 @@ type secret struct {
 
 var _ pflag.Value = (*secret)(nil)
 
-func (p *EditFlags) addUpdateFlags(command *cobra.Command) {
+func (p *EditFlags) addUpdateFlags(command *cobra.Command, prefix string) {
+	// Note that broker is not prefixed. This is because when we create a Trigger with an importer,
+	// we want to be sure they point at the same Broker, so we only use the flag here, not in
+	// Trigger flags.
 	command.Flags().StringVar(&p.Broker, "broker", "default", "Broker the Importer associates with.")
-	command.Flags().StringToStringVar(&p.Parameters, "parameters", make(map[string]string), "Parameters used in the spec of the created importer, expressed as a CSV.")
-	command.Flags().StringSliceVar(&p.EventTypes, "eventTypes", []string{}, "Comma separated list of event types.")
-	command.Flags().StringToStringVar(&p.ExtensionOverrides, "extensionOverrides", make(map[string]string), "CloudEvent extension attribute overrides.")
-	command.Flags().Var(&p.Secret, "secret", "Secret to inject into the spec as a SecretKeySelector. In the form `specField=secretName:key`. Which will set `spec.specField` to a SecretKeySelector.")
+
+	// All other flags are prefixed.
+	command.Flags().StringToStringVar(&p.Parameters, fmt.Sprintf("%s%s", prefix, "parameters"), make(map[string]string), "Parameters used in the spec of the created importer, expressed as a CSV.")
+	command.Flags().StringSliceVar(&p.EventTypes, fmt.Sprintf("%s%s", prefix, "event-types"), []string{}, "Comma separated list of event types.")
+	command.Flags().StringToStringVar(&p.ExtensionOverrides, fmt.Sprintf("%s%s", prefix, "extension-overrides"), make(map[string]string), "CloudEvent extension attribute overrides.")
+	command.Flags().Var(&p.Secret, fmt.Sprintf("%s%s", prefix, "secret"), "Secret to inject into the spec as a SecretKeySelector. In the form `specField=secretName:key`. Which will set `spec.specField` to a SecretKeySelector.")
 }
 
-func (p *EditFlags) AddCreateFlags(command *cobra.Command) {
-	p.addUpdateFlags(command)
+func (p *EditFlags) AddCreateFlags(command *cobra.Command, prefix string) {
+	p.addUpdateFlags(command, prefix)
 	command.Flags().BoolVar(&p.ForceCreate, "force", false, "Create importer forcefully, replaces existing importer if any.")
 }
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/knative/client/pkg/eventing/v1alpha1"
 	"github.com/knative/client/pkg/kn/commands"
+	gimporter "github.com/knative/client/pkg/kn/commands/importer/generic"
 	"github.com/knative/eventing/pkg/apis/eventing"
 	eventing_v1alpha1_api "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	"github.com/spf13/cobra"
@@ -28,13 +29,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	ceAttributeKey = "knimportertrigger"
+)
+
 func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
-	var editFlags EditFlags
+	var triggerEditFlags EditFlags
 	var waitFlags commands.WaitFlags
+	var importerEditFlags gimporter.EditFlags
 
 	triggerCreateCommand := &cobra.Command{
 		Use:   "create NAME --image IMAGE",
-		Short: "Create a trigger.",
+		Short: "Create a Trigger and optionally an importer. If an Importer is created, then the created Trigger receives events exclusively from the created importer.",
 		Example: `
   # Create a trigger 'mysvc' using image at dev.local/ns/image:latest
   kn trigger create mysvc --image dev.local/ns/image:latest
@@ -56,16 +62,55 @@ func NewTriggerCreateCommand(p *commands.KnParams) *cobra.Command {
   # (earlier configured resource requests and limits will be replaced with default)
   # (earlier configured environment variables will be cleared too if any)
   kn trigger create --force s1 --image dev.local/ns/image:v1`,
-
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f := triggerCreateFunc(p, &editFlags, &waitFlags)
-			_, err := f(cmd, args)
-			return err
+			if len(args) != 1 {
+				return errors.New("'trigger create' requires one argument, the name for the trigger")
+			}
+			name := args[0]
+
+			ns, err := p.GetNamespace(cmd)
+			if err != nil {
+				return err
+			}
+
+			triggerEditFlags.CopyDuplicateImporterFlags(importerEditFlags)
+
+			// TODO GetCRD and use its real name, not the guess given on the command line.
+
+			createImporter := triggerEditFlags.Importer != ""
+			if createImporter {
+				// Artificially add the correlating CloudEvent attribute.
+				ceValue := fmt.Sprintf("%s/%s:%s", triggerEditFlags.Importer, ns, name)
+				if triggerEditFlags.FilterAttributes == nil {
+					triggerEditFlags.FilterAttributes = make(map[string]string, 1)
+				}
+				triggerEditFlags.FilterAttributes[ceAttributeKey] = ceValue
+				if importerEditFlags.ExtensionOverrides == nil {
+					importerEditFlags.ExtensionOverrides = make(map[string]string, 1)
+				}
+				importerEditFlags.ExtensionOverrides[ceAttributeKey] = ceValue
+			}
+
+			triggerCreateF := triggerCreateFunc(p, &triggerEditFlags, &waitFlags)
+			createdTrigger, err := triggerCreateF(cmd, []string{name})
+			if err != nil {
+				return err
+			}
+
+			if createImporter {
+				importerCreate := gimporter.CreateCOFunc(p, &importerEditFlags, &waitFlags, gimporter.WithControllingOwner(createdTrigger))
+				if err := importerCreate(cmd, []string{triggerEditFlags.Importer, name}); err != nil {
+					return err
+				}
+			}
+
+			return nil
 		},
 	}
 	commands.AddNamespaceFlags(triggerCreateCommand.Flags(), false)
-	editFlags.AddCreateFlags(triggerCreateCommand, true)
+	triggerEditFlags.AddCreateFlags(triggerCreateCommand)
 	waitFlags.AddConditionWaitFlags(triggerCreateCommand, 60, "Create", "trigger")
+	importerEditFlags.AddCreateFlags(triggerCreateCommand, "importer-")
 	return triggerCreateCommand
 }
 

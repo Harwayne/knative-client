@@ -67,7 +67,7 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
 		RunE: CreateCOFunc(p, &editFlags, &waitFlags),
 	}
 	commands.AddNamespaceFlags(importerCreateCommand.Flags(), false)
-	editFlags.AddCreateFlags(importerCreateCommand)
+	editFlags.AddCreateFlags(importerCreateCommand, "")
 	waitFlags.AddConditionWaitFlags(importerCreateCommand, 60, "Create", "importer")
 	return importerCreateCommand
 }

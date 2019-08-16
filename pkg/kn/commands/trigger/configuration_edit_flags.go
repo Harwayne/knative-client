@@ -27,23 +27,19 @@ type EditFlags struct {
 	Broker           string
 	FilterAttributes map[string]string
 	SubscriberName   string
+	Importer         string
 
 	ForceCreate bool
 }
 
-func (p *EditFlags) AddUpdateFlags(command *cobra.Command, addDuplicateImporterFlags bool) {
-	if addDuplicateImporterFlags {
-		command.Flags().StringVar(&p.Broker, "broker", "default", "Broker the Trigger associates with.")
-	}
+func (p *EditFlags) AddUpdateFlags(command *cobra.Command) {
 	command.Flags().StringToStringVar(&p.FilterAttributes, "filter", make(map[string]string), "Filter attributes, expressed as a CSV.")
 	command.Flags().StringVar(&p.SubscriberName, "subscriber", "", "Name of the Knative Service that is subscribing to this Trigger.")
+	command.Flags().StringVar(&p.Importer, "importer", "", "Name of the Importer CRD to create pointing at this Trigger.")
 }
 
-func (p *EditFlags) AddCreateFlags(command *cobra.Command, addDuplicateImporterFlags bool) {
-	p.AddUpdateFlags(command, addDuplicateImporterFlags)
-	if addDuplicateImporterFlags {
-		command.Flags().BoolVar(&p.ForceCreate, "force", false, "Create trigger forcefully, replaces existing trigger if any.")
-	}
+func (p *EditFlags) AddCreateFlags(command *cobra.Command) {
+	p.AddUpdateFlags(command)
 	if err := command.MarkFlagRequired("subscriber"); err != nil {
 		panic(fmt.Errorf("marking flag required: %v", err))
 	}

@@ -96,7 +96,7 @@ func NewTriggerUpdateCommand(p *commands.KnParams) *cobra.Command {
 	}
 
 	commands.AddNamespaceFlags(triggerUpdateCommand.Flags(), false)
-	editFlags.AddUpdateFlags(triggerUpdateCommand, true)
+	editFlags.AddUpdateFlags(triggerUpdateCommand)
 	waitFlags.AddConditionWaitFlags(triggerUpdateCommand, 60, "Update", "trigger")
 	return triggerUpdateCommand
 }
