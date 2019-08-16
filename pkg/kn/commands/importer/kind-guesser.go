@@ -30,8 +30,11 @@ func GuessCRDFromKind(client dynamic.Interface, kind string) (v1beta1.CustomReso
 	kind = strings.ToLower(kind)
 	found := make([]v1beta1.CustomResourceDefinition, 0, len(crdL.Items))
 	for _, crd := range crdL.Items {
-		if strings.ToLower(crd.Spec.Names.Kind) == kind {
-			found = append(found, crd)
+		for _, n := range potentialNames(crd) {
+			if strings.ToLower(n) == kind {
+				found = append(found, crd)
+				break
+			}
 		}
 	}
 	if len(found) == 0 {
@@ -40,4 +43,14 @@ func GuessCRDFromKind(client dynamic.Interface, kind string) (v1beta1.CustomReso
 		return *found[0].DeepCopy(), nil
 	}
 	return v1beta1.CustomResourceDefinition{}, fmt.Errorf("multiple matching Importer CRDs found with kind %q, use the full CRD name instead", kind)
+}
+
+func potentialNames(crd v1beta1.CustomResourceDefinition) []string {
+	n := []string{
+		crd.Spec.Names.Kind,
+		crd.Spec.Names.Plural,
+		crd.Spec.Names.Singular,
+	}
+	n = append(n, crd.Spec.Names.ShortNames...)
+	return n
 }
