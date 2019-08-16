@@ -22,17 +22,17 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/dynamic"
-
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/client/pkg/printers"
 	"github.com/spf13/cobra"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/dynamic"
 )
 
 // Command for printing out a description of a trigger, meant to be consumed by humans
@@ -68,6 +68,9 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 			crdName := args[0]
 
 			_, crd, err := getCRD(p, crdName)
+			if err != nil {
+				return err
+			}
 
 			// Print out machine readable output if requested
 			if machineReadablePrintFlags.OutputFlagSpecified() {
@@ -102,6 +105,13 @@ func getCRD(p *commands.KnParams, name string) (dynamic.Interface, v1beta1.Custo
 	c := client.Resource(crdGVK)
 	u, err := c.Get(name, metav1.GetOptions{})
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			crd, newErr := GuessCRDFromKind(client, name)
+			if newErr != nil {
+				return client, v1beta1.CustomResourceDefinition{}, fmt.Errorf("%v :: %v", err, newErr)
+			}
+			return client, crd, nil
+		}
 		return nil, v1beta1.CustomResourceDefinition{}, err
 	}
 	crd, err := crd(u)
