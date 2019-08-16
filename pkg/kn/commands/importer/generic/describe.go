@@ -12,28 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package importer
+package generic
 
 import (
 	"errors"
+	"fmt"
 	"io"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	"knative.dev/pkg/apis"
-	"knative.dev/pkg/apis/duck/v1beta1"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sort"
+	"strings"
+	"time"
 
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/knative/client/pkg/printers"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"knative.dev/pkg/apis"
+	"knative.dev/pkg/apis/duck/v1beta1"
 )
 
 // Command for printing out a description of a trigger, meant to be consumed by humans
 // It will show information about the trigger itself, but also a summary
 // about the associated revisions.
+
+// Whether to print extended information
+var printDetails bool
+
+// Max length When to truncate long strings (when not "all" mode switched on)
+const truncateAt = 100
 
 // NewTriggerDescribeCommand returns a new command for describing a trigger.
 func NewImporterDescribeCOCommand(p *commands.KnParams) *cobra.Command {
@@ -42,7 +51,7 @@ func NewImporterDescribeCOCommand(p *commands.KnParams) *cobra.Command {
 	machineReadablePrintFlags := genericclioptions.NewPrintFlags("")
 
 	command := &cobra.Command{
-		Use:   "describe-co NAME",
+		Use:   "describe NAME",
 		Short: "Show details for an importer custom object.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 2 {
@@ -56,14 +65,14 @@ func NewImporterDescribeCOCommand(p *commands.KnParams) *cobra.Command {
 				return err
 			}
 
-			c, crd, err := getCRD(p, crdName)
+			c, crd, err := GetCRD(p, crdName)
 			if err != nil {
 				return err
 			}
 
 			gvr := getGVR(crd)
 
-			co, err := c.Resource(gvr).Namespace(ns).Get(name, v1.GetOptions{})
+			co, err := c.Resource(gvr).Namespace(ns).Get(name, metav1.GetOptions{})
 			if err != nil {
 				return err
 			}
@@ -117,6 +126,61 @@ func writeCO(dw printers.PrefixWriter, co unstructured.Unstructured) {
 
 // ======================================================================================
 // Helper functions
+
+// Format label (extracted so that color could be added more easily to all labels)
+func l(label string) string {
+	return label + ":"
+}
+
+// Write a map either compact in a single line (possibly truncated) or, if printDetails is set,
+// over multiple line, one line per key-value pair. The output is sorted by keys.
+func writeMapDesc(dw printers.PrefixWriter, indent int, m map[string]string, label string, labelPrefix string) {
+	if len(m) == 0 {
+		return
+	}
+
+	var keys []string
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	if printDetails {
+		l := labelPrefix + label
+
+		for _, key := range keys {
+			dw.WriteColsLn(indent, l, key+"="+m[key])
+			l = labelPrefix
+		}
+		return
+	}
+
+	dw.WriteColsLn(indent, label, joinAndTruncate(keys, m))
+}
+
+// Join to key=value pair, comma separated, and truncate if longer than a limit
+func joinAndTruncate(sortedKeys []string, m map[string]string) string {
+	ret := ""
+	for _, key := range sortedKeys {
+		ret += fmt.Sprintf("%s=%s, ", key, m[key])
+		if len(ret) > truncateAt {
+			break
+		}
+	}
+	// cut of two latest chars
+	ret = strings.TrimRight(ret, ", ")
+	if len(ret) <= truncateAt {
+		return ret
+	}
+	return ret[:truncateAt-4] + " ..."
+}
+
+func age(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return duration.ShortHumanDuration(time.Now().Sub(t))
+}
 
 func printReadiness(dw printers.PrefixWriter, level int, u unstructured.Unstructured) {
 	c, err := extractReadyCondition(u)

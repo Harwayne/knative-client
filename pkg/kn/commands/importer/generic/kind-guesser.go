@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package importer
+package generic
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ import (
 )
 
 func GuessCRDFromKind(client dynamic.Interface, kind string) (v1beta1.CustomResourceDefinition, error) {
-	crdL, err := listImporterCRDs(client)
+	crdL, err := ListImporterCRDs(client)
 	if err != nil {
 		return v1beta1.CustomResourceDefinition{}, err
 	}

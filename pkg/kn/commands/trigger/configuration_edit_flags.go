@@ -17,7 +17,7 @@ package trigger
 import (
 	"fmt"
 
-	"github.com/knative/client/pkg/kn/commands/importer"
+	gimporter "github.com/knative/client/pkg/kn/commands/importer/generic"
 	eventingv1alpha1 "github.com/knative/eventing/pkg/apis/eventing/v1alpha1"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -49,7 +49,7 @@ func (p *EditFlags) AddCreateFlags(command *cobra.Command, addDuplicateImporterF
 	}
 }
 
-func (p *EditFlags) CopyDuplicateImporterFlags(flags importer.EditFlags) {
+func (p *EditFlags) CopyDuplicateImporterFlags(flags gimporter.EditFlags) {
 	p.Broker = flags.Broker
 	p.ForceCreate = flags.ForceCreate
 }

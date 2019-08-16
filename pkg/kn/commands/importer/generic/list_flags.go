@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package importer
+package generic
 
 import (
 	"github.com/knative/client/pkg/kn/commands"

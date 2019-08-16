@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/knative/client/pkg/kn/commands/importer"
+	gimporter "github.com/knative/client/pkg/kn/commands/importer/generic"
 
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/spf13/cobra"
@@ -31,7 +31,7 @@ const (
 func NewTriggerCreateWithImporterCommand(p *commands.KnParams) *cobra.Command {
 	var triggerEditFlags EditFlags
 	var waitFlags commands.WaitFlags
-	var importerEditFlags importer.EditFlags
+	var importerEditFlags gimporter.EditFlags
 
 	triggerCreateCommand := &cobra.Command{
 		Use:   "create-with-importer NAME --image IMAGE",
@@ -89,7 +89,7 @@ func NewTriggerCreateWithImporterCommand(p *commands.KnParams) *cobra.Command {
 				return err
 			}
 
-			importerCreate := importer.CreateCOFunc(p, &importerEditFlags, &waitFlags, importer.WithControllingOwner(createdTrigger))
+			importerCreate := gimporter.CreateCOFunc(p, &importerEditFlags, &waitFlags, gimporter.WithControllingOwner(createdTrigger))
 			if err := importerCreate(cmd, []string{importerCRD, name}); err != nil {
 				return err
 			}

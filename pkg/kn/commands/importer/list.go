@@ -17,22 +17,15 @@ package importer
 import (
 	"fmt"
 
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-
-	"github.com/prometheus/common/log"
-	"k8s.io/apimachinery/pkg/labels"
-
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/client-go/dynamic"
-
 	"github.com/knative/client/pkg/kn/commands"
+	"github.com/knative/client/pkg/kn/commands/importer/generic"
+	"github.com/prometheus/common/log"
 	"github.com/spf13/cobra"
 )
 
 // NewTriggerListCommand represents 'kn trigger list' command
 func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
-	triggerListFlags := NewImporterListFlags()
+	triggerListFlags := generic.NewImporterListFlags()
 
 	triggerListCommand := &cobra.Command{
 		Use:   "list [name]",
@@ -54,7 +47,7 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			crdList, err := listImporterCRDs(client)
+			crdList, err := generic.ListImporterCRDs(client)
 			if err != nil {
 				return err
 			}
@@ -78,25 +71,4 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
 	commands.AddNamespaceFlags(triggerListCommand.Flags(), true)
 	triggerListFlags.AddFlags(triggerListCommand)
 	return triggerListCommand
-}
-
-func listImporterCRDs(client dynamic.Interface) (v1beta1.CustomResourceDefinitionList, error) {
-	uList, err := client.Resource(crdGVK).List(v1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{
-			"eventing.knative.dev/source": "true",
-		}).String(),
-	})
-	if err != nil {
-		return v1beta1.CustomResourceDefinitionList{}, err
-	}
-
-	crdList := v1beta1.CustomResourceDefinitionList{}
-	for _, u := range uList.Items {
-		crd, err := crd(&u)
-		if err != nil {
-			return v1beta1.CustomResourceDefinitionList{}, err
-		}
-		crdList.Items = append(crdList.Items, crd)
-	}
-	return crdList, nil
 }

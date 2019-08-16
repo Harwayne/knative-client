@@ -23,16 +23,12 @@ import (
 	"time"
 
 	"github.com/knative/client/pkg/kn/commands"
+	"github.com/knative/client/pkg/kn/commands/importer/generic"
 	"github.com/knative/client/pkg/printers"
 	"github.com/spf13/cobra"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/dynamic"
 )
 
 // Command for printing out a description of a trigger, meant to be consumed by humans
@@ -67,7 +63,7 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 			}
 			crdName := args[0]
 
-			_, crd, err := getCRD(p, crdName)
+			_, crd, err := generic.GetCRD(p, crdName)
 			if err != nil {
 				return err
 			}
@@ -94,31 +90,6 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 	flags.BoolP("verbose", "v", false, "More output.")
 	machineReadablePrintFlags.AddFlags(command)
 	return command
-}
-
-func getCRD(p *commands.KnParams, name string) (dynamic.Interface, v1beta1.CustomResourceDefinition, error) {
-	client, err := p.NewDynamicClient()
-	if err != nil {
-		return nil, v1beta1.CustomResourceDefinition{}, err
-	}
-
-	c := client.Resource(crdGVK)
-	u, err := c.Get(name, metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			crd, newErr := GuessCRDFromKind(client, name)
-			if newErr != nil {
-				return client, v1beta1.CustomResourceDefinition{}, fmt.Errorf("%v :: %v", err, newErr)
-			}
-			return client, crd, nil
-		}
-		return nil, v1beta1.CustomResourceDefinition{}, err
-	}
-	crd, err := crd(u)
-	if err != nil {
-		return nil, v1beta1.CustomResourceDefinition{}, err
-	}
-	return client, crd, nil
 }
 
 // Main action describing the trigger
@@ -252,14 +223,6 @@ func writeEventTypes(dw printers.PrefixWriter, indent int, crd v1beta1.CustomRes
 		writeIfNotEmpty(dw, indent+2, "Type", v.ceType)
 		writeIfNotEmpty(dw, indent+2, "Schema", v.ceSchema)
 	}
-}
-
-func crd(u *unstructured.Unstructured) (v1beta1.CustomResourceDefinition, error) {
-	var crd v1beta1.CustomResourceDefinition
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, &crd); err != nil {
-		return v1beta1.CustomResourceDefinition{}, fmt.Errorf("converting unstructured: %v", err)
-	}
-	return crd, nil
 }
 
 type props struct {

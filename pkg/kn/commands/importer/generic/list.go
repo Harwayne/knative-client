@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package importer
+package generic
 
 import (
 	"errors"
 	"fmt"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/prometheus/common/log"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // NewTriggerListCommand represents 'kn trigger list' command
@@ -30,7 +29,7 @@ func NewImporterListCOCommand(p *commands.KnParams) *cobra.Command {
 	importerListCOFlags := NewImporterListFlags()
 
 	importerListCOCommand := &cobra.Command{
-		Use:   "list-co [name]",
+		Use:   "list [name]",
 		Short: "List available Importer Custom Objects.",
 		Example: `
   # List all triggers
@@ -52,13 +51,13 @@ func NewImporterListCOCommand(p *commands.KnParams) *cobra.Command {
 				return err
 			}
 
-			c, crd, err := getCRD(p, crdName)
+			c, crd, err := GetCRD(p, crdName)
 			if err != nil {
 				return err
 			}
 			gvr := getGVR(crd)
 
-			coList, err := c.Resource(gvr).Namespace(ns).List(v1.ListOptions{})
+			coList, err := c.Resource(gvr).Namespace(ns).List(metav1.ListOptions{})
 			if err != nil {
 				return err
 			}

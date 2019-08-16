@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package importer
+package generic
 
 import (
 	"errors"
@@ -40,7 +40,7 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
 	var waitFlags commands.WaitFlags
 
 	importerCreateCommand := &cobra.Command{
-		Use:   "create-co NAME --image IMAGE",
+		Use:   "create NAME --image IMAGE",
 		Short: "Create an importer custom object.",
 		Example: `
   # Create a importer 'mysvc' using image at dev.local/ns/image:latest
@@ -85,7 +85,7 @@ func CreateCOFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *command
 			return err
 		}
 
-		client, crd, err := getCRD(p, crdName)
+		client, crd, err := GetCRD(p, crdName)
 		if err != nil {
 			return err
 		}

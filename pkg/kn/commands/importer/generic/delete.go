@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package importer
+package generic
 
 import (
 	"errors"
 	"fmt"
 
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-
-	"k8s.io/apimachinery/pkg/runtime/schema"
-
 	"github.com/knative/client/pkg/kn/commands"
 	"github.com/spf13/cobra"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 // NewImporterDeleteCOCommand represent 'importer delete-co' command
 func NewImporterDeleteCOCommand(p *commands.KnParams) *cobra.Command {
 	importerDeleteCommand := &cobra.Command{
-		Use:   "delete-co CRD_NAME CO_NAME",
+		Use:   "delete CRD_NAME CO_NAME",
 		Short: "Delete an importer custom object.",
 		Example: `
   # Delete a importer 'svc1' in default namespace
@@ -49,7 +47,7 @@ func NewImporterDeleteCOCommand(p *commands.KnParams) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			c, crd, err := getCRD(p, crdName)
+			c, crd, err := GetCRD(p, crdName)
 			if err != nil {
 				return err
 			}
