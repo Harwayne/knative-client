@@ -83,14 +83,14 @@ func waitForUnstructured(client dynamic.ResourceInterface, name string, out io.W
 func getImporterReady(client dynamic.ResourceInterface, name string) (bool, error) {
 	u, err := client.Get(name, metav1.GetOptions{})
 	if err != nil {
-		if err.Error() == "status not present" {
-			// Give extra time for the status to become present.
-			return false, nil
-		}
 		return false, err
 	}
 	c, err := extractReadyCondition(*u)
 	if err != nil {
+		if err.Error() == "status not present" {
+			// Give extra time for the status to become present.
+			return false, nil
+		}
 		return false, err
 	}
 	if c.Status == corev1.ConditionTrue {
