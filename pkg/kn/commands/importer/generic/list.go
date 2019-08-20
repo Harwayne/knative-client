@@ -29,17 +29,24 @@ func NewImporterListCOCommand(p *commands.KnParams) *cobra.Command {
 	importerListCOFlags := NewImporterListFlags()
 
 	importerListCOCommand := &cobra.Command{
-		Use:   "list [name]",
+		Use:   "list [CRD_NAME]",
 		Short: "List available Importer Custom Objects.",
 		Example: `
-  # List all triggers
-  kn trigger list
+  # List all importer custom objects of kind
+  # apiserversources.sources.eventing.knative.dev.
+  kn importer generic list apiserversources.sources.eventing.knative.dev
 
-  # List all triggers in JSON output format
-  kn trigger list -o json
+  # List all importer custom objects of kind 'apiserversource'.
+  # 'apiserversource' can be the name, kind, singular, or plural name of the
+  # CRD. If there are multiple CRDs that match 'apiserversource', then an
+  # error is returned.
+  kn importer generic list apiserversource
 
-  # List trigger 'web'
-  kn trigger list web`,
+  # List all apiserversource custom objects in JSON output format.
+  kn importer generic list apiserversource -o json
+
+  # List apiserversource custom object 'cli'.
+  kn trigger list apiserversource cli`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
 				return errors.New("requires the CRD name")

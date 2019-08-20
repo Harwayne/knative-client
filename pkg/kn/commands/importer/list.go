@@ -31,14 +31,14 @@ func NewImporterListCommand(p *commands.KnParams) *cobra.Command {
 		Use:   "list [name]",
 		Short: "List available triggers.",
 		Example: `
-  # List all triggers
-  kn trigger list
+  # List all importer CRDs.
+  kn importer list
 
-  # List all triggers in JSON output format
-  kn trigger list -o json
+  # List all importer CRDs in JSON output format.
+  kn importer list -o json
 
-  # List trigger 'web'
-  kn trigger list web`,
+  # List importer CRD 'apiserversources.sources.eventing.knative.dev'.
+  kn importer list apiserversources.sources.eventing.knative.dev`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 0 {
 				return fmt.Errorf("'kn service list' accepts maximum 1 argument")

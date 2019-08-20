@@ -41,29 +41,14 @@ func NewImporterCreateCOCommand(p *commands.KnParams) *cobra.Command {
 	var waitFlags commands.WaitFlags
 
 	importerCreateCommand := &cobra.Command{
-		Use:   "create NAME --image IMAGE",
+		Use:   "create CRD_NAME CO_NAME",
 		Short: "Create an importer custom object.",
 		Example: `
-  # Create a importer 'mysvc' using image at dev.local/ns/image:latest
-  kn importer create mysvc --image dev.local/ns/image:latest
+  # Create a CronJobSource importer named 'my-imp' which sends its events to
+  # the default Broker.
+  kn importer generic create CronJobSource my-imp
 
-  # Create a importer with multiple environment variables
-  kn importer create mysvc --env KEY1=VALUE1 --env KEY2=VALUE2 --image dev.local/ns/image:latest
-
-  # Create or replace a importer 's1' with image dev.local/ns/image:v2 using --force flag
-  # if importer 's1' doesn't exist, it's just a normal create operation
-  kn importer create --force s1 --image dev.local/ns/image:v2
-
-  # Create or replace environment variables of importer 's1' using --force flag
-  kn importer create --force s1 --env KEY1=NEW_VALUE1 --env NEW_KEY2=NEW_VALUE2 --image dev.local/ns/image:v1
-
-  # Create importer 'mysvc' with port 80
-  kn importer create mysvc --port 80 --image dev.local/ns/image:latest
-
-  # Create or replace default resources of a importer 's1' using --force flag
-  # (earlier configured resource requests and limits will be replaced with default)
-  # (earlier configured environment variables will be cleared too if any)
-  kn importer create --force s1 --image dev.local/ns/image:v1`,
+  TODO: Add more`,
 
 		RunE: CreateCOFunc(p, &editFlags, &waitFlags, nil),
 	}

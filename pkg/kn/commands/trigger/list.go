@@ -28,7 +28,7 @@ func NewTriggerListCommand(p *commands.KnParams) *cobra.Command {
 	triggerListFlags := NewTriggerListFlags()
 
 	triggerListCommand := &cobra.Command{
-		Use:   "list [name]",
+		Use:   "list [NAME]",
 		Short: "List available triggers.",
 		Example: `
   # List all triggers.
@@ -37,8 +37,8 @@ func NewTriggerListCommand(p *commands.KnParams) *cobra.Command {
   # List all triggers in JSON output format.
   kn trigger list -o json
 
-  # List trigger 'web'.
-  kn trigger list web`,
+  # List trigger 'cli'.
+  kn trigger list cli`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			namespace, err := p.GetNamespace(cmd)
 			if err != nil {

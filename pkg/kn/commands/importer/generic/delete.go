@@ -30,11 +30,15 @@ func NewImporterDeleteCOCommand(p *commands.KnParams) *cobra.Command {
 		Use:   "delete CRD_NAME CO_NAME",
 		Short: "Delete an importer custom object.",
 		Example: `
-  # Delete a importer 'svc1' in default namespace
-  kn importer delete svc1
+  # Delete the importer 'imp1' of type
+  # 'apiserversources.sources.eventing.knative.dev' in the default namespace.
+  kn importer delete apiserversources.sources.eventing.knative.dev imp1
 
-  # Delete a importer 'svc2' in 'ns1' namespace
-  kn importer delete svc2 -n ns1`,
+  # Delete the importer 'imp1' of type 'apiserversources' in the default
+  # namespace. 'apiserversource' can be the name, kind, singular, or plural name
+  # of the CRD. If there are multiple CRDs that match 'apiserversource', then an
+  # error is returned.
+  kn importer delete apiserversources imp1`,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 2 {

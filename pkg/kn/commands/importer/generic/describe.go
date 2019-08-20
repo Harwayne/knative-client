@@ -51,11 +51,11 @@ func NewImporterDescribeCOCommand(p *commands.KnParams) *cobra.Command {
 	machineReadablePrintFlags := genericclioptions.NewPrintFlags("")
 
 	command := &cobra.Command{
-		Use:   "describe NAME",
+		Use:   "describe CRD_NAME CO_NAME",
 		Short: "Show details for an importer custom object.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 2 {
-				return errors.New("'importer create-co' requires the importer CRD name as the first argument and the CO name as the second argument")
+				return errors.New("'importer generic create' requires the importer CRD name as the first argument and the CO name as the second argument")
 			}
 			crdName := args[0]
 			name := args[1]

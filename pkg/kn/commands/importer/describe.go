@@ -53,7 +53,7 @@ func NewImporterDescribeCommand(p *commands.KnParams) *cobra.Command {
 
 	command := &cobra.Command{
 		Use:   "describe NAME",
-		Short: "Show details for a given trigger",
+		Short: "Show details for a given importer, including the event types it generates and its configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
 				return errors.New("no trigger name provided")
