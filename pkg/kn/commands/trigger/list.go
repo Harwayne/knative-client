@@ -31,13 +31,13 @@ func NewTriggerListCommand(p *commands.KnParams) *cobra.Command {
 		Use:   "list [name]",
 		Short: "List available triggers.",
 		Example: `
-  # List all triggers
+  # List all triggers.
   kn trigger list
 
-  # List all triggers in JSON output format
+  # List all triggers in JSON output format.
   kn trigger list -o json
 
-  # List trigger 'web'
+  # List trigger 'web'.
   kn trigger list web`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			namespace, err := p.GetNamespace(cmd)

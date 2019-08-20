@@ -28,11 +28,11 @@ func NewTriggerDeleteCommand(p *commands.KnParams) *cobra.Command {
 		Use:   "delete NAME",
 		Short: "Delete a trigger.",
 		Example: `
-  # Delete a trigger 'svc1' in default namespace
-  kn trigger delete svc1
+  # Delete trigger 't1' in the default namespace.
+  kn trigger delete t1
 
-  # Delete a trigger 'svc2' in 'ns1' namespace
-  kn trigger delete svc2 -n ns1`,
+  # Delete trigger 't2' in the 'ns1' namespace.
+  kn trigger delete t2 -n ns1`,
 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) != 1 {
