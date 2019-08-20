@@ -25,8 +25,6 @@ func NewImporterCommand(p *commands.KnParams) *cobra.Command {
 		Use: "importer",
 		Aliases: []string{
 			"importers",
-			"source",
-			"sources",
 		},
 		Short: "Importer command group",
 	}
