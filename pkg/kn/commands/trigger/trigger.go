@@ -41,8 +41,7 @@ func NewTriggerCommand(p *commands.KnParams) *cobra.Command {
 		NewTriggerListCommand(p),
 		NewTriggerDescribeCommand(p),
 		NewTriggerCreateCommand(p),
-		NewTriggerDeleteCommand(p),
-		NewTriggerUpdateCommand(p))
+		NewTriggerDeleteCommand(p))
 	return triggerCmd
 }
 
