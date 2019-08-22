@@ -7,21 +7,21 @@ List available triggers.
 List available triggers.
 
 ```
-kn trigger list [name] [flags]
+kn trigger list [NAME] [flags]
 ```
 
 ### Examples
 
 ```
 
-  # List all triggers
+  # List all triggers.
   kn trigger list
 
-  # List all triggers in JSON output format
+  # List all triggers in JSON output format.
   kn trigger list -o json
 
-  # List trigger 'web'
-  kn trigger list web
+  # List trigger 'cli'.
+  kn trigger list cli
 ```
 
 ### Options

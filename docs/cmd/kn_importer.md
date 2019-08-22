@@ -27,8 +27,7 @@ kn importer [flags]
 ### SEE ALSO
 
 * [kn](kn.md)	 - Knative client
-* [kn importer create-co](kn_importer_create-co.md)	 - Create an importer custom object.
-* [kn importer delete-co](kn_importer_delete-co.md)	 - Delete an importer custom object.
-* [kn importer describe](kn_importer_describe.md)	 - Show details for a given trigger
+* [kn importer describe](kn_importer_describe.md)	 - Show details for a given importer, including the event types it generates and its configuration.
+* [kn importer generic](kn_importer_generic.md)	 - Generic Importer command group
 * [kn importer list](kn_importer_list.md)	 - List available triggers.
 

@@ -1,13 +1,13 @@
-## kn importer describe
+## kn importer generic describe
 
-Show details for a given importer, including the event types it generates and its configuration.
+Show details for an importer custom object.
 
 ### Synopsis
 
-Show details for a given importer, including the event types it generates and its configuration.
+Show details for an importer custom object.
 
 ```
-kn importer describe NAME [flags]
+kn importer generic describe CRD_NAME CO_NAME [flags]
 ```
 
 ### Options
@@ -31,5 +31,5 @@ kn importer describe NAME [flags]
 
 ### SEE ALSO
 
-* [kn importer](kn_importer.md)	 - Importer command group
+* [kn importer generic](kn_importer_generic.md)	 - Generic Importer command group
 

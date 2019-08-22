@@ -1,27 +1,34 @@
-## kn importer list
+## kn importer generic list
 
-List available triggers.
+List available Importer Custom Objects.
 
 ### Synopsis
 
-List available triggers.
+List available Importer Custom Objects.
 
 ```
-kn importer list [name] [flags]
+kn importer generic list [CRD_NAME] [flags]
 ```
 
 ### Examples
 
 ```
 
-  # List all importer CRDs.
-  kn importer list
+  # List all importer custom objects of kind
+  # apiserversources.sources.eventing.knative.dev.
+  kn importer generic list apiserversources.sources.eventing.knative.dev
 
-  # List all importer CRDs in JSON output format.
-  kn importer list -o json
+  # List all importer custom objects of kind 'apiserversource'.
+  # 'apiserversource' can be the name, kind, singular, or plural name of the
+  # CRD. If there are multiple CRDs that match 'apiserversource', then an
+  # error is returned.
+  kn importer generic list apiserversource
 
-  # List importer CRD 'apiserversources.sources.eventing.knative.dev'.
-  kn importer list apiserversources.sources.eventing.knative.dev
+  # List all apiserversource custom objects in JSON output format.
+  kn importer generic list apiserversource -o json
+
+  # List apiserversource custom object 'cli'.
+  kn trigger list apiserversource cli
 ```
 
 ### Options
@@ -45,5 +52,5 @@ kn importer list [name] [flags]
 
 ### SEE ALSO
 
-* [kn importer](kn_importer.md)	 - Importer command group
+* [kn importer generic](kn_importer_generic.md)	 - Generic Importer command group
 
