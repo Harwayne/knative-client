@@ -90,11 +90,11 @@ func (p *EditFlags) Apply(m map[string]interface{}, cmd *cobra.Command) error {
 	return nil
 }
 
-func (s secret) String() string {
+func (s *secret) String() string {
 	return fmt.Sprintf("%s=%s:%s", s.specField, s.name, s.key)
 }
 
-func (s secret) Set(f string) error {
+func (s *secret) Set(f string) error {
 	i := strings.Index(f, "=")
 	if i < 0 {
 		return fmt.Errorf("did not match the expected syntax (missing '=') %q", f)
@@ -126,6 +126,6 @@ func (s secret) Set(f string) error {
 	return nil
 }
 
-func (s secret) Type() string {
+func (s *secret) Type() string {
 	return "secret"
 }
