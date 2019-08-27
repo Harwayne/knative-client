@@ -90,7 +90,7 @@ func CreateCOFunc(p *commands.KnParams, editFlags *EditFlags, waitFlags *command
 		gvr := getGVR(crd)
 		gvk := getGVK(crd)
 
-		importer, err := constructImporter(cmd, gvk, editFlags, name, ns)
+		importer, err := constructImporter(cmd, gvk, *editFlags, name, ns)
 		if err != nil {
 			return err
 		}
@@ -242,7 +242,7 @@ func importerExists(client dynamic.ResourceInterface, name string) (bool, error)
 }
 
 // Create importer struct from provided options
-func constructImporter(cmd *cobra.Command, gvk schema.GroupVersionKind, editFlags *EditFlags, name string, ns string) (*unstructured.Unstructured, error) {
+func constructImporter(cmd *cobra.Command, gvk schema.GroupVersionKind, editFlags EditFlags, name string, ns string) (*unstructured.Unstructured, error) {
 	m := make(map[string]interface{})
 	m["metadata"] = metav1.ObjectMeta{
 		Name:      name,
